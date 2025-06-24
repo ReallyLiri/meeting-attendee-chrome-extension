@@ -41,4 +41,37 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     sendResponse({ recording: !!recordingTabs[msg.tabId] });
     return true;
   }
+  if (msg.type === "TAKE_SCREENSHOT" && msg.tabId) {
+    console.log(`TAKE_SCREENSHOT for tabId=${msg.tabId}`);
+    chrome.tabs.get(msg.tabId, (tab) => {
+      if (!tab || !tab.windowId) {
+        sendResponse({ error: "Tab not found" });
+        return;
+      }
+      // Activate the tab's window and the tab itself
+      chrome.windows.update(tab.windowId, { focused: true }, () => {
+        chrome.tabs.update(msg.tabId, { active: true }, () => {
+          // Give Chrome a moment to focus the tab
+          setTimeout(() => {
+            chrome.tabs.captureVisibleTab(
+              tab.windowId,
+              { format: "png" },
+              (dataUrl) => {
+                if (chrome.runtime.lastError || !dataUrl) {
+                  sendResponse({
+                    error:
+                      chrome.runtime.lastError?.message ||
+                      "Failed to capture screenshot",
+                  });
+                } else {
+                  sendResponse({ dataUrl });
+                }
+              },
+            );
+          }, 300); // 300ms delay to allow focus switch
+        });
+      });
+    });
+    return true; // Keep the message channel open for async response
+  }
 });

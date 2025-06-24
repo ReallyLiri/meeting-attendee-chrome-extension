@@ -21,34 +21,44 @@
 
   async function captureScreenshot(): Promise<void> {
     if (!targetTabId) return;
-
     try {
+      // Request screenshot from background
       const screenshot = await new Promise<string>((resolve, reject) => {
-        chrome.tabs.captureVisibleTab(
-          undefined as any,
-          {
-            format: "png",
-          },
-          (dataUrl) => {
-            if (chrome.runtime.lastError) {
-              reject(chrome.runtime.lastError);
+        chrome.runtime.sendMessage(
+          { type: "TAKE_SCREENSHOT", tabId: targetTabId },
+          (response) => {
+            if (chrome.runtime.lastError || !response || !response.dataUrl) {
+              console.error(
+                "Screenshot error:",
+                chrome.runtime.lastError,
+                response,
+              );
+              reject(
+                chrome.runtime.lastError || new Error("No screenshot data"),
+              );
             } else {
-              resolve(dataUrl);
+              resolve(response.dataUrl);
             }
           },
         );
       });
-
+      console.log("Screenshot captured", screenshot.slice(0, 30));
       screenshots.push({
         timestamp: Date.now(),
         data: screenshot,
       });
+      console.log("Screenshots array length:", screenshots.length);
     } catch (error) {
       console.error("Failed to capture screenshot:", error);
     }
   }
 
-  function downloadScreenshots(): void {
+  function downloadScreenshots(): Promise<void> {
+    console.log("Downloading screenshots, count:", screenshots.length);
+    if (screenshots.length === 0) {
+      alert("No screenshots captured.");
+      return Promise.resolve();
+    }
     const zip = new JSZip();
     screenshots.forEach((screenshot, index) => {
       // Convert base64 to blob
@@ -58,7 +68,7 @@
       });
     });
 
-    zip.generateAsync({ type: "blob" }).then((content: Blob) => {
+    return zip.generateAsync({ type: "blob" }).then((content: Blob) => {
       const url = URL.createObjectURL(content);
       const a = document.createElement("a");
       a.style.display = "none";
@@ -132,17 +142,21 @@
           setTimeout(() => {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            // Download screenshots after audio
-            downloadScreenshots();
-            statusDiv.textContent = "Recording stopped and downloaded.";
-            // Notify background to update badge/state
-            if (targetTabId) {
-              chrome.runtime.sendMessage({
-                type: "STOP_RECORDING",
-                tabId: targetTabId,
+            // Take a final screenshot before downloading
+            captureScreenshot().then(() => {
+              // Download screenshots after audio
+              downloadScreenshots().then(() => {
+                statusDiv.textContent = "Recording stopped and downloaded.";
+                // Notify background to update badge/state
+                if (targetTabId) {
+                  chrome.runtime.sendMessage({
+                    type: "STOP_RECORDING",
+                    tabId: targetTabId,
+                  });
+                }
+                window.close();
               });
-            }
-            window.close();
+            });
           }, 100);
         };
         mediaRecorder.start();
