@@ -19,6 +19,10 @@ document.addEventListener("DOMContentLoaded", () => {
     intervalInput.disabled = !captureScreenshotsCheckbox.checked;
   }
 
+  function updateAudioBatchEnabled() {
+    audioBatchInput.disabled = !captureAudioCheckbox.checked;
+  }
+
   chrome.storage.local.get(["config"], (result) => {
     if (result.config) {
       captureScreenshotsCheckbox.checked =
@@ -32,9 +36,11 @@ document.addEventListener("DOMContentLoaded", () => {
       audioBatchInput.value = "300";
     }
     updateIntervalEnabled();
+    updateAudioBatchEnabled();
   });
 
   captureScreenshotsCheckbox.addEventListener("change", updateIntervalEnabled);
+  captureAudioCheckbox.addEventListener("change", updateAudioBatchEnabled);
 
   saveBtn.addEventListener("click", () => {
     const config = {
