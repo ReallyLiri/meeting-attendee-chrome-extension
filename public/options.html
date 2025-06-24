@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Extension Options</title>
+    <title>Attendee Options</title>
     <style>
       body {
         font-family: sans-serif;
-        max-width: 400px;
+        max-width: 80vw;
         margin: 2em auto;
       }
       .options-grid {
@@ -42,10 +42,15 @@
       h2 {
         text-align: center;
       }
+      img {
+        padding-top: 32px;
+        max-height: 60vh;
+        border-radius: 32px;
+      }
     </style>
   </head>
   <body>
-    <h2>Recorder Options</h2>
+    <h2>Attendee Options</h2>
     <form class="options-grid">
       <input type="checkbox" id="captureScreenshots" />
       <label for="captureScreenshots">Capture Screenshots</label>
@@ -71,6 +76,9 @@
     </form>
     <div class="button-row">
       <button id="saveBtn">Save</button>
+    </div>
+    <div class="button-row">
+      <img src="attendee.png" alt="Attendee logo" />
     </div>
     <script src="options.js"></script>
   </body>
