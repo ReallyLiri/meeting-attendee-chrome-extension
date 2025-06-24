@@ -43,33 +43,29 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
   if (msg.type === "TAKE_SCREENSHOT" && msg.tabId) {
     console.log(`TAKE_SCREENSHOT for tabId=${msg.tabId}`);
-    chrome.tabs.get(msg.tabId, (tab) => {
-      if (!tab || !tab.windowId) {
-        sendResponse({ error: "Tab not found" });
-        return;
-      }
-      // Activate the tab's window and the tab itself
-      chrome.windows.update(tab.windowId, { focused: true }, () => {
-        chrome.tabs.update(msg.tabId, { active: true }, () => {
-          // Give Chrome a moment to focus the tab
-          setTimeout(() => {
-            chrome.tabs.captureVisibleTab(
-              tab.windowId,
-              { format: "png" },
-              (dataUrl) => {
-                if (chrome.runtime.lastError || !dataUrl) {
-                  sendResponse({
-                    error:
-                      chrome.runtime.lastError?.message ||
-                      "Failed to capture screenshot",
-                  });
-                } else {
-                  sendResponse({ dataUrl });
-                }
-              },
-            );
-          }, 300); // 300ms delay to allow focus switch
-        });
+    const debuggee = { tabId: msg.tabId };
+    chrome.debugger.attach(debuggee, "1.3", () => {
+      chrome.debugger.sendCommand(debuggee, "Page.enable", {}, () => {
+        chrome.debugger.sendCommand(
+          debuggee,
+          "Page.captureScreenshot",
+          {
+            format: "png",
+            quality: 100,
+            captureBeyondViewport: true,
+            fromSurface: true,
+          },
+          (result) => {
+            chrome.debugger.detach(debuggee, () => {
+              const data = (result as { data?: string }).data;
+              if (data) {
+                sendResponse({ dataUrl: "data:image/png;base64," + data });
+              } else {
+                sendResponse({ error: "Failed to capture screenshot" });
+              }
+            });
+          },
+        );
       });
     });
     return true; // Keep the message channel open for async response

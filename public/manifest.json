@@ -3,7 +3,14 @@
   "name": "Meeting Attendee Audio & Screenshot Recorder",
   "version": "1.0.0",
   "description": "Records tab audio to WAV and takes periodic screenshots, saving to a configurable host directory.",
-  "permissions": ["storage", "scripting", "activeTab", "tabCapture"],
+  "permissions": [
+    "debugger",
+    "tabs",
+    "storage",
+    "scripting",
+    "activeTab",
+    "tabCapture"
+  ],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
