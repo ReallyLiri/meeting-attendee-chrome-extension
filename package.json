@@ -16,7 +16,5 @@
     "build": "tsc",
     "package": "yarn build && cd public && zip -r ../meeting-attendee-chrome-extension.zip ."
   },
-  "dependencies": {
-    "jszip": "^3.10.1"
-  }
+  "dependencies": {}
 }

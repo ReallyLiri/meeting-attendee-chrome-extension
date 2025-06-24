@@ -94,6 +94,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     sendResponse({ success: true });
     return true;
   }
+  if (msg.type === "REQUEST_TAB_CAPTURE" && msg.tabId) {
+    console.log(
+      "REQUEST_TAB_CAPTURE received for tabId=",
+      msg.tabId,
+      "captureAudio=",
+      msg.captureAudio,
+    );
+    // This is just an ack for the recorder page, actual capture is done in the page context
+    sendResponse({ success: true });
+    return true;
+  }
 });
 
 // Listen for tab removal to handle forced recorder tab closure

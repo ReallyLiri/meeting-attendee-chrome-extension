@@ -39,7 +39,7 @@
   "options_page": "options.html",
   "web_accessible_resources": [
     {
-      "resources": ["recorder.html", "recorder.js", "jszip.min.js"],
+      "resources": ["recorder.html", "recorder.js"],
       "matches": ["<all_urls>"]
     }
   ]
