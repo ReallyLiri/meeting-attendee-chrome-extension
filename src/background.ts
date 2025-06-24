@@ -44,17 +44,27 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === "TAKE_SCREENSHOT" && msg.tabId) {
     console.log(`TAKE_SCREENSHOT for tabId=${msg.tabId}`);
     const debuggee = { tabId: msg.tabId };
+    // Use sender.tab for viewport size if available
+    const senderTab = sender && sender.tab;
+    const width = senderTab?.width;
+    const height = senderTab?.height;
+    const x = 0;
+    const y = 0;
     chrome.debugger.attach(debuggee, "1.3", () => {
       chrome.debugger.sendCommand(debuggee, "Page.enable", {}, () => {
+        const params: any = {
+          format: "png",
+          quality: 100,
+          captureBeyondViewport: false,
+          fromSurface: true,
+        };
+        if (width && height) {
+          params.clip = { x, y, width, height, scale: 1 };
+        }
         chrome.debugger.sendCommand(
           debuggee,
           "Page.captureScreenshot",
-          {
-            format: "png",
-            quality: 100,
-            captureBeyondViewport: true,
-            fromSurface: true,
-          },
+          params,
           (result) => {
             chrome.debugger.detach(debuggee, () => {
               const data = (result as { data?: string }).data;
