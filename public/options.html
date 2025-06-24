@@ -10,52 +10,68 @@
         max-width: 400px;
         margin: 2em auto;
       }
-      .option-row {
-        display: flex;
+      .options-grid {
+        display: grid;
+        grid-template-columns: 32px auto auto 90px;
+        gap: 1em 0.5em;
         align-items: center;
-        margin-top: 1em;
+        margin-bottom: 1.5em;
+        min-width: 420px;
       }
-      .option-row label {
-        margin: 0 0.5em 0 0;
-        display: flex;
-        align-items: center;
-      }
-      .option-row input[type="checkbox"] {
+      .options-grid label {
+        justify-self: start;
         margin-right: 0.5em;
+        text-align: left;
       }
-      .interval-group {
+      .options-grid input[type="number"] {
+        width: 80px;
+      }
+      .options-grid input[type="checkbox"] {
+        margin-right: 0.5em;
+        justify-self: end;
+      }
+      .button-row {
         display: flex;
-        align-items: center;
-        margin-left: 1em;
-      }
-      .interval-group input[type="number"] {
-        width: 60px;
-        margin-left: 0.5em;
+        justify-content: center;
+        width: 100%;
       }
       button {
         margin-top: 1.5em;
         padding: 0.5em 1em;
       }
+      h2 {
+        text-align: center;
+      }
     </style>
   </head>
   <body>
     <h2>Recorder Options</h2>
-    <div class="option-row">
-      <label>
-        <input type="checkbox" id="captureScreenshots" checked /> Capture
-        Screenshots
-      </label>
-      <div class="interval-group">
-        <label for="screenshotInterval">Interval (s):</label>
-        <input type="number" id="screenshotInterval" min="1" value="15" />
-      </div>
+    <form class="options-grid">
+      <input type="checkbox" id="captureScreenshots" />
+      <label for="captureScreenshots">Capture Screenshots</label>
+      <label for="screenshotInterval">Interval (sec)</label>
+      <input
+        type="number"
+        id="screenshotInterval"
+        min="5"
+        value="15"
+        step="5"
+      />
+
+      <input type="checkbox" id="captureAudio" />
+      <label for="captureAudio">Capture Audio</label>
+      <label for="audioBatchInterval">Interval (sec)</label>
+      <input
+        type="number"
+        id="audioBatchInterval"
+        min="5"
+        value="300"
+        step="5"
+      />
+    </form>
+    <div class="button-row">
+      <button id="saveBtn">Save</button>
     </div>
-    <div class="option-row">
-      <label>
-        <input type="checkbox" id="captureAudio" checked /> Capture Audio
-      </label>
-    </div>
-    <button id="saveBtn">Save</button>
     <script src="options.js"></script>
   </body>
 </html>

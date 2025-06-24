@@ -6,6 +6,9 @@
   let capturedStream: MediaStream | null = null;
   let targetTabId: number | null = null;
   let screenshotInterval: number | null = null;
+  let audioBatchInterval: number | null = null;
+  let audioBatchIndex: number = 0;
+  let audioBatchIntervalSec: number = 300; // default 5*60 seconds
   const AUDIO_MIME_TYPE = "audio/webm;codecs=opus";
 
   const beforeUnloadHandler = (event: BeforeUnloadEvent) => {
@@ -29,14 +32,22 @@
     return `${now.getFullYear()}.${pad(now.getMonth() + 1)}.${pad(now.getDate())}.${pad(now.getHours())}.${pad(now.getMinutes())}`;
   }
 
-  // Utility: Get normalized filename for a tab and extension
-  async function getTabFilename(tabId: number, ext: string): Promise<string> {
+  // Utility: Get normalized filename for a tab and extension, with optional batch index
+  async function getTabFilename(
+    tabId: number,
+    ext: string,
+    batchIdx?: number,
+  ): Promise<string> {
     const tab = await new Promise<chrome.tabs.Tab | undefined>((resolve) => {
       chrome.tabs.get(tabId, (t) => resolve(t));
     });
     const title = normalizeTitle(tab?.title || "tab");
     const timestamp = getTimestamp();
-    return `${title}_${timestamp}.${ext}`;
+    let filename = `${title}_${timestamp}`;
+    if (typeof batchIdx === "number") {
+      filename += `_part${batchIdx}`;
+    }
+    return `${filename}.${ext}`;
   }
 
   // Utility: Download a blob or data URL with a given filename
@@ -98,6 +109,31 @@
     }
   }
 
+  function startAudioBatching() {
+    if (audioBatchInterval) clearInterval(audioBatchInterval);
+    audioBatchIndex = 0;
+    audioBatchInterval = window.setInterval(() => {
+      if (audioChunks.length > 0 && targetTabId) {
+        const batch = audioChunks.splice(0, audioChunks.length);
+        const audioBlob = new Blob(batch, { type: AUDIO_MIME_TYPE });
+        const url = URL.createObjectURL(audioBlob);
+        getTabFilename(targetTabId, "webm", ++audioBatchIndex).then(
+          (filename) => {
+            triggerDownload(url, filename);
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+          },
+        );
+      }
+    }, audioBatchIntervalSec * 1000);
+  }
+
+  function stopAudioBatching() {
+    if (audioBatchInterval) {
+      clearInterval(audioBatchInterval);
+      audioBatchInterval = null;
+    }
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     const stopBtn = document.getElementById("stopBtn") as HTMLButtonElement;
     const statusDiv = document.getElementById("status") as HTMLDivElement;
@@ -112,6 +148,7 @@
       const captureScreenshots = config.captureScreenshots !== false;
       const captureAudio = config.captureAudio !== false;
       const screenshotIntervalSec = config.screenshotIntervalSec || 5;
+      audioBatchIntervalSec = config.audioBatchIntervalSec || 300;
       statusDiv.textContent = "Requesting tab audio capture...";
       console.log("Requesting tab capture from background", {
         tabId: targetTabId,
@@ -167,6 +204,7 @@
                   audioBitsPerSecond: 32000,
                 });
                 audioChunks = [];
+                audioBatchIndex = 0;
                 mediaRecorder.ondataavailable = (event) => {
                   audioChunks.push(event.data);
                 };
@@ -175,44 +213,48 @@
                     "beforeunload",
                     beforeUnloadHandler,
                   );
-                  const audioBlob = new Blob(audioChunks, {
-                    type: AUDIO_MIME_TYPE,
-                  });
-                  const url = URL.createObjectURL(audioBlob);
-                  // Download audio file with normalized filename
-                  getTabFilename(targetTabId!, "webm").then((filename) => {
-                    triggerDownload(url, filename);
-                    setTimeout(() => {
-                      URL.revokeObjectURL(url);
-                      // Take a final screenshot before finishing
-                      if (captureScreenshots) {
-                        captureScreenshot().then(() => {
-                          statusDiv.textContent =
-                            "Recording stopped and downloaded.";
-                          // Notify background to update badge/state
-                          if (targetTabId) {
-                            chrome.runtime.sendMessage({
-                              type: "STOP_RECORDING",
-                              tabId: targetTabId,
-                            });
-                          }
-                          window.close();
+                  stopAudioBatching();
+                  // Download any remaining audio
+                  if (audioChunks.length > 0 && targetTabId) {
+                    const audioBlob = new Blob(audioChunks, {
+                      type: AUDIO_MIME_TYPE,
+                    });
+                    const url = URL.createObjectURL(audioBlob);
+                    getTabFilename(targetTabId, "webm", ++audioBatchIndex).then(
+                      (filename) => {
+                        triggerDownload(url, filename);
+                        setTimeout(() => URL.revokeObjectURL(url), 100);
+                      },
+                    );
+                    audioChunks = [];
+                  }
+                  // Take a final screenshot before finishing
+                  if (captureScreenshots) {
+                    captureScreenshot().then(() => {
+                      statusDiv.textContent =
+                        "Recording stopped and downloaded.";
+                      // Notify background to update badge/state
+                      if (targetTabId) {
+                        chrome.runtime.sendMessage({
+                          type: "STOP_RECORDING",
+                          tabId: targetTabId,
                         });
-                      } else {
-                        statusDiv.textContent =
-                          "Recording stopped and downloaded.";
-                        if (targetTabId) {
-                          chrome.runtime.sendMessage({
-                            type: "STOP_RECORDING",
-                            tabId: targetTabId,
-                          });
-                        }
-                        window.close();
                       }
-                    }, 100);
-                  });
+                      window.close();
+                    });
+                  } else {
+                    statusDiv.textContent = "Recording stopped and downloaded.";
+                    if (targetTabId) {
+                      chrome.runtime.sendMessage({
+                        type: "STOP_RECORDING",
+                        tabId: targetTabId,
+                      });
+                    }
+                    window.close();
+                  }
                 };
                 mediaRecorder.start();
+                startAudioBatching();
               } else {
                 // No audio, just screenshots
                 statusDiv.textContent = "Recording... (screenshots only)";

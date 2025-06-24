@@ -10,6 +10,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const intervalInput = document.getElementById(
     "screenshotInterval",
   ) as HTMLInputElement;
+  const audioBatchInput = document.getElementById(
+    "audioBatchInterval",
+  ) as HTMLInputElement;
   const saveBtn = document.getElementById("saveBtn") as HTMLButtonElement;
 
   function updateIntervalEnabled() {
@@ -22,9 +25,11 @@ document.addEventListener("DOMContentLoaded", () => {
         result.config.captureScreenshots !== false;
       captureAudioCheckbox.checked = result.config.captureAudio !== false;
       intervalInput.value = result.config.screenshotIntervalSec || 15;
+      audioBatchInput.value = result.config.audioBatchIntervalSec || 300;
     } else {
       captureScreenshotsCheckbox.checked = true;
       captureAudioCheckbox.checked = true;
+      audioBatchInput.value = "300";
     }
     updateIntervalEnabled();
   });
@@ -36,6 +41,7 @@ document.addEventListener("DOMContentLoaded", () => {
       captureScreenshots: captureScreenshotsCheckbox.checked,
       captureAudio: captureAudioCheckbox.checked,
       screenshotIntervalSec: parseInt(intervalInput.value, 10),
+      audioBatchIntervalSec: parseInt(audioBatchInput.value, 10),
     };
     chrome.runtime.sendMessage(
       { type: "UPDATE_CONFIG", config },
