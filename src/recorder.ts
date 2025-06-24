@@ -8,6 +8,7 @@
   let screenshotInterval: number | null = null;
   let screenshots: { timestamp: number; data: string }[] = [];
   const AUDIO_MIME_TYPE = "audio/webm;codecs=opus";
+  const keepAudioStreaming = getBoolQueryParam("keepAudioStreaming", false);
 
   const beforeUnloadHandler = (event: BeforeUnloadEvent) => {
     event.preventDefault();
@@ -109,6 +110,7 @@
   document.addEventListener("DOMContentLoaded", () => {
     const stopBtn = document.getElementById("stopBtn") as HTMLButtonElement;
     const statusDiv = document.getElementById("status") as HTMLDivElement;
+    const liveAudio = document.getElementById("liveAudio") as HTMLAudioElement;
     targetTabId = Number(getQueryParam("tabId"));
     const captureScreenshots = getBoolQueryParam("captureScreenshots", true);
     const captureAudio = getBoolQueryParam("captureAudio", true);
@@ -117,6 +119,9 @@
       return;
     }
     statusDiv.textContent = "Requesting tab audio capture...";
+    liveAudio.autoplay = true;
+    liveAudio.muted = false;
+    liveAudio.style.display = "none";
     chrome.tabCapture.capture(
       {
         audio: captureAudio,

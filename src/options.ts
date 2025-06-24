@@ -10,9 +10,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const intervalInput = document.getElementById(
     "screenshotInterval",
   ) as HTMLInputElement;
-  const serverCheckbox = document.getElementById(
-    "serverCheckbox",
-  ) as HTMLInputElement;
   const saveBtn = document.getElementById("saveBtn") as HTMLButtonElement;
 
   function updateIntervalEnabled() {
@@ -25,7 +22,6 @@ document.addEventListener("DOMContentLoaded", () => {
         result.config.captureScreenshots !== false;
       captureAudioCheckbox.checked = result.config.captureAudio !== false;
       intervalInput.value = result.config.screenshotIntervalSec || 15;
-      serverCheckbox.checked = !!result.config.server;
     } else {
       captureScreenshotsCheckbox.checked = true;
       captureAudioCheckbox.checked = true;
@@ -40,7 +36,6 @@ document.addEventListener("DOMContentLoaded", () => {
       captureScreenshots: captureScreenshotsCheckbox.checked,
       captureAudio: captureAudioCheckbox.checked,
       screenshotIntervalSec: parseInt(intervalInput.value, 10),
-      server: serverCheckbox.checked,
     };
     chrome.runtime.sendMessage(
       { type: "UPDATE_CONFIG", config },
