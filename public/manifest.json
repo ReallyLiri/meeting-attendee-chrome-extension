@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Meeting Attendee Audio & Screenshot Recorder",
+  "name": "Meeting Attendee",
   "version": "1.0.0",
-  "description": "Records tab audio to WAV and takes periodic screenshots, saving to a configurable host directory.",
+  "description": "Records tab audio and screenshots to help you attend meetings.",
   "permissions": [
     "debugger",
     "tabs",
@@ -18,15 +18,17 @@
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
-      "16": "icon16.png",
-      "48": "icon48.png",
-      "128": "icon128.png"
+      "16": "attendee-sm.png",
+      "32": "attendee-sm.png",
+      "48": "attendee.png",
+      "128": "attendee.png"
     }
   },
   "icons": {
-    "16": "icon16.png",
-    "48": "icon48.png",
-    "128": "icon128.png"
+    "16": "attendee.png",
+    "32": "attendee-sm.png",
+    "48": "attendee.png",
+    "128": "attendee.png"
   },
   "content_scripts": [
     {

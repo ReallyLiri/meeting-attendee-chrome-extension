@@ -10,14 +10,27 @@
         max-width: 400px;
         margin: 2em auto;
       }
-      label {
-        display: block;
+      .option-row {
+        display: flex;
+        align-items: center;
         margin-top: 1em;
       }
-      input {
-        width: 100%;
-        padding: 0.5em;
-        margin-top: 0.5em;
+      .option-row label {
+        margin: 0 0.5em 0 0;
+        display: flex;
+        align-items: center;
+      }
+      .option-row input[type="checkbox"] {
+        margin-right: 0.5em;
+      }
+      .interval-group {
+        display: flex;
+        align-items: center;
+        margin-left: 1em;
+      }
+      .interval-group input[type="number"] {
+        width: 60px;
+        margin-left: 0.5em;
       }
       button {
         margin-top: 1.5em;
@@ -27,19 +40,26 @@
   </head>
   <body>
     <h2>Recorder Options</h2>
-    <label>
-      Screenshot Interval (seconds):
-      <input type="number" id="screenshotInterval" min="1" value="15" />
-    </label>
-    <label>
-      Save Directory (host path):
-      <input type="text" id="saveDirectory" placeholder="/Users/yourname/Downloads" />
-    </label>
-    <label> <input type="checkbox" id="serverCheckbox" /> Stream audio to server </label>
-    <label>
-      Server URL:
-      <input type="text" id="serverUrl" placeholder="https://yourserver.com/upload" />
-    </label>
+    <div class="option-row">
+      <label>
+        <input type="checkbox" id="captureScreenshots" checked /> Capture
+        Screenshots
+      </label>
+      <div class="interval-group">
+        <label for="screenshotInterval">Interval (s):</label>
+        <input type="number" id="screenshotInterval" min="1" value="15" />
+      </div>
+    </div>
+    <div class="option-row">
+      <label>
+        <input type="checkbox" id="captureAudio" checked /> Capture Audio
+      </label>
+    </div>
+    <div class="option-row">
+      <label>
+        <input type="checkbox" id="serverCheckbox" /> Stream audio to server
+      </label>
+    </div>
     <button id="saveBtn">Save</button>
     <script src="options.js"></script>
   </body>

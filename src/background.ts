@@ -1,6 +1,8 @@
 // Handles extension activation, tab audio capture, and communication with content scripts
 
 let recordingTabs: Record<number, boolean> = {};
+// Map from recorderTabId to targetTabId
+let recorderTabToTargetTab: Record<number, number> = {};
 
 function updateBadge(tabId: number, recording: boolean) {
   console.log(`updateBadge: tabId=${tabId}, recording=${recording}`);
@@ -79,5 +81,30 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       });
     });
     return true; // Keep the message channel open for async response
+  }
+  if (
+    msg.type === "REGISTER_RECORDER_TAB" &&
+    msg.recorderTabId &&
+    msg.targetTabId
+  ) {
+    recorderTabToTargetTab[msg.recorderTabId] = msg.targetTabId;
+    console.log(
+      `Registered recorder tab ${msg.recorderTabId} for target tab ${msg.targetTabId}`,
+    );
+    sendResponse({ success: true });
+    return true;
+  }
+});
+
+// Listen for tab removal to handle forced recorder tab closure
+chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
+  if (recorderTabToTargetTab[tabId]) {
+    const targetTabId = recorderTabToTargetTab[tabId];
+    console.log(
+      `Recorder tab ${tabId} closed, stopping recording for target tab ${targetTabId}`,
+    );
+    recordingTabs[targetTabId] = false;
+    updateBadge(targetTabId, false);
+    delete recorderTabToTargetTab[tabId];
   }
 });

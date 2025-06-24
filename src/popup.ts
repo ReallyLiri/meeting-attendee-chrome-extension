@@ -34,27 +34,48 @@ document.addEventListener("DOMContentLoaded", () => {
         },
       );
     } else {
-      // Get screenshot interval from storage (default to 5 seconds)
-      chrome.storage.sync.get({ screenshotInterval: 5000 }, (result) => {
-        const recorderUrl = chrome.runtime.getURL(
-          `recorder.html?tabId=${currentTabId}&screenshotInterval=${result.screenshotInterval}`,
-        );
-        // Tell background to start recording and update badge
-        chrome.runtime.sendMessage(
-          { type: "START_RECORDING", tabId: currentTabId },
-          () => {
-            chrome.tabs.create(
-              {
-                url: recorderUrl,
-                active: false,
-              },
-              () => {
-                updateButton();
-              },
-            );
+      // Get config from storage (default to screenshots/audio enabled, 5s interval)
+      chrome.storage.local.get(
+        {
+          config: {
+            captureScreenshots: true,
+            captureAudio: true,
+            screenshotIntervalSec: 5,
           },
-        );
-      });
+        },
+        (result) => {
+          const config = result.config || {};
+          const recorderUrl = chrome.runtime.getURL(
+            `recorder.html?tabId=${currentTabId}` +
+              `&screenshotInterval=${config.screenshotIntervalSec}` +
+              `&captureScreenshots=${config.captureScreenshots ? "1" : "0"}` +
+              `&captureAudio=${config.captureAudio ? "1" : "0"}`,
+          );
+          // Tell background to start recording and update badge
+          chrome.runtime.sendMessage(
+            { type: "START_RECORDING", tabId: currentTabId },
+            () => {
+              chrome.tabs.create(
+                {
+                  url: recorderUrl,
+                  active: false,
+                },
+                (tab) => {
+                  if (tab && tab.id) {
+                    // Register the recorder tab with the background script
+                    chrome.runtime.sendMessage({
+                      type: "REGISTER_RECORDER_TAB",
+                      recorderTabId: tab.id,
+                      targetTabId: currentTabId,
+                    });
+                  }
+                  updateButton();
+                },
+              );
+            },
+          );
+        },
+      );
     }
   });
 

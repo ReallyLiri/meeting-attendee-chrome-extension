@@ -7,6 +7,7 @@
   let targetTabId: number | null = null;
   let screenshotInterval: number | null = null;
   let screenshots: { timestamp: number; data: string }[] = [];
+  const AUDIO_MIME_TYPE = "audio/webm;codecs=opus";
 
   const beforeUnloadHandler = (event: BeforeUnloadEvent) => {
     event.preventDefault();
@@ -17,6 +18,12 @@
   function getQueryParam(name: string): string | null {
     const url = new URL(window.location.href);
     return url.searchParams.get(name);
+  }
+
+  function getBoolQueryParam(name: string, defaultValue: boolean): boolean {
+    const val = getQueryParam(name);
+    if (val === null) return defaultValue;
+    return val === "1" || val.toLowerCase() === "true";
   }
 
   async function captureScreenshot(): Promise<void> {
@@ -103,6 +110,8 @@
     const stopBtn = document.getElementById("stopBtn") as HTMLButtonElement;
     const statusDiv = document.getElementById("status") as HTMLDivElement;
     targetTabId = Number(getQueryParam("tabId"));
+    const captureScreenshots = getBoolQueryParam("captureScreenshots", true);
+    const captureAudio = getBoolQueryParam("captureAudio", true);
     if (!targetTabId) {
       statusDiv.textContent = "No target tab specified.";
       return;
@@ -110,11 +119,11 @@
     statusDiv.textContent = "Requesting tab audio capture...";
     chrome.tabCapture.capture(
       {
-        audio: true,
+        audio: captureAudio,
         video: false,
       },
       (stream) => {
-        if (chrome.runtime.lastError || !stream) {
+        if (chrome.runtime.lastError || (!stream && captureAudio)) {
           statusDiv.textContent =
             "Tab capture failed: " + chrome.runtime.lastError?.message;
           return;
@@ -124,30 +133,45 @@
         statusDiv.textContent = "Recording...";
         window.addEventListener("beforeunload", beforeUnloadHandler);
 
-        mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
-        audioChunks = [];
-        mediaRecorder.ondataavailable = (event) => {
-          audioChunks.push(event.data);
-        };
-        mediaRecorder.onstop = () => {
-          window.removeEventListener("beforeunload", beforeUnloadHandler);
-          const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
-          const url = URL.createObjectURL(audioBlob);
-          const a = document.createElement("a");
-          a.style.display = "none";
-          a.href = url;
-          a.download = "tab-audio.webm";
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(() => {
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            // Take a final screenshot before downloading
-            captureScreenshot().then(() => {
-              // Download screenshots after audio
-              downloadScreenshots().then(() => {
+        if (captureAudio && stream) {
+          mediaRecorder = new MediaRecorder(stream, {
+            mimeType: AUDIO_MIME_TYPE,
+            audioBitsPerSecond: 32000,
+          });
+          audioChunks = [];
+          mediaRecorder.ondataavailable = (event) => {
+            audioChunks.push(event.data);
+          };
+          mediaRecorder.onstop = () => {
+            window.removeEventListener("beforeunload", beforeUnloadHandler);
+            const audioBlob = new Blob(audioChunks, { type: AUDIO_MIME_TYPE });
+            const url = URL.createObjectURL(audioBlob);
+            const a = document.createElement("a");
+            a.style.display = "none";
+            a.href = url;
+            a.download = "tab-audio.webm";
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              // Take a final screenshot before downloading
+              if (captureScreenshots) {
+                captureScreenshot().then(() => {
+                  downloadScreenshots().then(() => {
+                    statusDiv.textContent = "Recording stopped and downloaded.";
+                    // Notify background to update badge/state
+                    if (targetTabId) {
+                      chrome.runtime.sendMessage({
+                        type: "STOP_RECORDING",
+                        tabId: targetTabId,
+                      });
+                    }
+                    window.close();
+                  });
+                });
+              } else {
                 statusDiv.textContent = "Recording stopped and downloaded.";
-                // Notify background to update badge/state
                 if (targetTabId) {
                   chrome.runtime.sendMessage({
                     type: "STOP_RECORDING",
@@ -155,14 +179,23 @@
                   });
                 }
                 window.close();
-              });
-            });
-          }, 100);
-        };
-        mediaRecorder.start();
+              }
+            }, 100);
+          };
+          mediaRecorder.start();
+        } else {
+          // No audio, just screenshots
+          statusDiv.textContent = "Recording... (screenshots only)";
+          // Take screenshots if enabled
+          if (captureScreenshots) {
+            startScreenshotCapture();
+          }
+        }
 
-        // Start screenshot capture after audio recording starts
-        startScreenshotCapture();
+        // Start screenshot capture after audio recording starts (if enabled)
+        if (captureScreenshots && captureAudio && stream) {
+          startScreenshotCapture();
+        }
       },
     );
 
@@ -179,6 +212,33 @@
             type: "STOP_RECORDING",
             tabId: targetTabId,
           });
+        }
+      } else {
+        // No audio, just screenshots
+        stopScreenshotCapture();
+        // Take a final screenshot before downloading
+        if (captureScreenshots) {
+          captureScreenshot().then(() => {
+            downloadScreenshots().then(() => {
+              statusDiv.textContent = "Recording stopped and downloaded.";
+              if (targetTabId) {
+                chrome.runtime.sendMessage({
+                  type: "STOP_RECORDING",
+                  tabId: targetTabId,
+                });
+              }
+              window.close();
+            });
+          });
+        } else {
+          statusDiv.textContent = "Recording stopped.";
+          if (targetTabId) {
+            chrome.runtime.sendMessage({
+              type: "STOP_RECORDING",
+              tabId: targetTabId,
+            });
+          }
+          window.close();
         }
       }
     });
