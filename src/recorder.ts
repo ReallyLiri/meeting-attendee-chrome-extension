@@ -8,7 +8,6 @@
   let screenshotInterval: number | null = null;
   let screenshots: { timestamp: number; data: string }[] = [];
   const AUDIO_MIME_TYPE = "audio/webm;codecs=opus";
-  const keepAudioStreaming = getBoolQueryParam("keepAudioStreaming", false);
 
   const beforeUnloadHandler = (event: BeforeUnloadEvent) => {
     event.preventDefault();
