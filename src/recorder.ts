@@ -10,6 +10,7 @@
   let audioBatchIndex: number = 0;
   let audioBatchIntervalSec: number = 300; // default 5*60 seconds
   const AUDIO_MIME_TYPE = "audio/webm;codecs=opus";
+  let tabTitleNormalized: string | null = null;
 
   const beforeUnloadHandler = (event: BeforeUnloadEvent) => {
     event.preventDefault();
@@ -32,22 +33,11 @@
     return `${now.getFullYear()}.${pad(now.getMonth() + 1)}.${pad(now.getDate())}.${pad(now.getHours())}.${pad(now.getMinutes())}`;
   }
 
-  // Utility: Get normalized filename for a tab and extension, with optional batch index
-  async function getTabFilename(
-    tabId: number,
-    ext: string,
-    batchIdx?: number,
-  ): Promise<string> {
-    const tab = await new Promise<chrome.tabs.Tab | undefined>((resolve) => {
-      chrome.tabs.get(tabId, (t) => resolve(t));
-    });
-    const title = normalizeTitle(tab?.title || "tab");
+  // Utility: Get normalized filename for a tab and extension
+  function getTabFilename(ext: string): string {
+    if (!tabTitleNormalized) throw new Error("Tab title not initialized");
     const timestamp = getTimestamp();
-    let filename = `${title}_${timestamp}`;
-    if (typeof batchIdx === "number") {
-      filename += `_part${batchIdx}`;
-    }
-    return `${filename}.${ext}`;
+    return `${tabTitleNormalized}_${timestamp}.${ext}`;
   }
 
   // Utility: Download a blob or data URL with a given filename
@@ -87,7 +77,7 @@
         );
       });
       // Download screenshot immediately
-      const filename = await getTabFilename(targetTabId, "png");
+      const filename = getTabFilename("png");
       triggerDownload(screenshot, filename);
     } catch (error) {
       console.error("Failed to capture screenshot:", error);
@@ -117,12 +107,9 @@
         const batch = audioChunks.splice(0, audioChunks.length);
         const audioBlob = new Blob(batch, { type: AUDIO_MIME_TYPE });
         const url = URL.createObjectURL(audioBlob);
-        getTabFilename(targetTabId, "webm", ++audioBatchIndex).then(
-          (filename) => {
-            triggerDownload(url, filename);
-            setTimeout(() => URL.revokeObjectURL(url), 100);
-          },
-        );
+        const filename = getTabFilename("webm");
+        triggerDownload(url, filename);
+        setTimeout(() => URL.revokeObjectURL(url), 100);
       }
     }, audioBatchIntervalSec * 1000);
   }
@@ -154,86 +141,96 @@
         tabId: targetTabId,
         captureAudio,
       });
-      // Request tab capture from background
-      chrome.runtime.sendMessage(
-        { type: "REQUEST_TAB_CAPTURE", tabId: targetTabId, captureAudio },
-        (response) => {
-          console.log(
-            "Tab capture response from background:",
-            response,
-            chrome.runtime.lastError,
-          );
-          if (!response || !response.success) {
-            statusDiv.textContent =
-              "Tab capture failed: " + (response?.error || "Unknown error");
-            console.error(
-              "Tab capture failed response:",
+      // Fetch and normalize tab title once
+      chrome.tabs.get(Number(targetTabId), (tab) => {
+        tabTitleNormalized = normalizeTitle(tab?.title || "tab");
+        // Request tab capture from background
+        chrome.runtime.sendMessage(
+          { type: "REQUEST_TAB_CAPTURE", tabId: targetTabId, captureAudio },
+          (response) => {
+            console.log(
+              "Tab capture response from background:",
               response,
               chrome.runtime.lastError,
             );
-            return;
-          }
-          console.log("Calling chrome.tabCapture.capture", {
-            audio: captureAudio,
-            video: false,
-          });
-          chrome.tabCapture.capture(
-            {
+            if (!response || !response.success) {
+              statusDiv.textContent =
+                "Tab capture failed: " + (response?.error || "Unknown error");
+              console.error(
+                "Tab capture failed response:",
+                response,
+                chrome.runtime.lastError,
+              );
+              return;
+            }
+            console.log("Calling chrome.tabCapture.capture", {
               audio: captureAudio,
               video: false,
-            },
-            (stream) => {
-              if (chrome.runtime.lastError || (!stream && captureAudio)) {
-                statusDiv.textContent =
-                  "Tab capture failed: " + chrome.runtime.lastError?.message;
-                console.error(
-                  "chrome.tabCapture.capture failed:",
-                  chrome.runtime.lastError,
-                  stream,
-                );
-                return;
-              }
-
-              capturedStream = stream;
-              statusDiv.textContent = "Recording...";
-              window.addEventListener("beforeunload", beforeUnloadHandler);
-
-              if (captureAudio && stream) {
-                mediaRecorder = new MediaRecorder(stream, {
-                  mimeType: AUDIO_MIME_TYPE,
-                  audioBitsPerSecond: 32000,
-                });
-                audioChunks = [];
-                audioBatchIndex = 0;
-                mediaRecorder.ondataavailable = (event) => {
-                  audioChunks.push(event.data);
-                };
-                mediaRecorder.onstop = () => {
-                  window.removeEventListener(
-                    "beforeunload",
-                    beforeUnloadHandler,
+            });
+            chrome.tabCapture.capture(
+              {
+                audio: captureAudio,
+                video: false,
+              },
+              (stream) => {
+                if (chrome.runtime.lastError || (!stream && captureAudio)) {
+                  statusDiv.textContent =
+                    "Tab capture failed: " + chrome.runtime.lastError?.message;
+                  console.error(
+                    "chrome.tabCapture.capture failed:",
+                    chrome.runtime.lastError,
+                    stream,
                   );
-                  stopAudioBatching();
-                  // Download any remaining audio
-                  if (audioChunks.length > 0 && targetTabId) {
-                    const audioBlob = new Blob(audioChunks, {
-                      type: AUDIO_MIME_TYPE,
-                    });
-                    const url = URL.createObjectURL(audioBlob);
-                    getTabFilename(targetTabId, "webm", ++audioBatchIndex).then(
-                      (filename) => {
-                        triggerDownload(url, filename);
-                        setTimeout(() => URL.revokeObjectURL(url), 100);
-                      },
+                  return;
+                }
+
+                capturedStream = stream;
+                statusDiv.textContent = "Recording...";
+                window.addEventListener("beforeunload", beforeUnloadHandler);
+
+                if (captureAudio && stream) {
+                  mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: AUDIO_MIME_TYPE,
+                    audioBitsPerSecond: 32000,
+                  });
+                  audioChunks = [];
+                  audioBatchIndex = 0;
+                  mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                  };
+                  mediaRecorder.onstop = () => {
+                    window.removeEventListener(
+                      "beforeunload",
+                      beforeUnloadHandler,
                     );
-                    audioChunks = [];
-                  }
-                  // Take a final screenshot before finishing
-                  if (captureScreenshots) {
-                    captureScreenshot().then(() => {
+                    stopAudioBatching();
+                    // Download any remaining audio
+                    if (audioChunks.length > 0 && targetTabId) {
+                      const audioBlob = new Blob(audioChunks, {
+                        type: AUDIO_MIME_TYPE,
+                      });
+                      const url = URL.createObjectURL(audioBlob);
+                      const filename = getTabFilename("webm");
+                      triggerDownload(url, filename);
+                      audioChunks = [];
+                    }
+                    // Take a final screenshot before finishing
+                    if (captureScreenshots) {
+                      captureScreenshot().then(() => {
+                        statusDiv.textContent =
+                          "Recording stopped and downloaded.";
+                        // Notify background to update badge/state
+                        if (targetTabId) {
+                          chrome.runtime.sendMessage({
+                            type: "STOP_RECORDING",
+                            tabId: targetTabId,
+                          });
+                        }
+                        window.close();
+                      });
+                    } else {
                       statusDiv.textContent =
                         "Recording stopped and downloaded.";
-                      // Notify background to update badge/state
                       if (targetTabId) {
                         chrome.runtime.sendMessage({
                           type: "STOP_RECORDING",
@@ -241,35 +238,26 @@
                         });
                       }
                       window.close();
-                    });
-                  } else {
-                    statusDiv.textContent = "Recording stopped and downloaded.";
-                    if (targetTabId) {
-                      chrome.runtime.sendMessage({
-                        type: "STOP_RECORDING",
-                        tabId: targetTabId,
-                      });
                     }
-                    window.close();
+                  };
+                  mediaRecorder.start();
+                  startAudioBatching();
+                } else {
+                  // No audio, just screenshots
+                  statusDiv.textContent = "Recording... (screenshots only)";
+                  if (captureScreenshots) {
+                    startScreenshotCapture(screenshotIntervalSec * 1000);
                   }
-                };
-                mediaRecorder.start();
-                startAudioBatching();
-              } else {
-                // No audio, just screenshots
-                statusDiv.textContent = "Recording... (screenshots only)";
-                if (captureScreenshots) {
+                }
+
+                if (captureScreenshots && captureAudio && stream) {
                   startScreenshotCapture(screenshotIntervalSec * 1000);
                 }
-              }
-
-              if (captureScreenshots && captureAudio && stream) {
-                startScreenshotCapture(screenshotIntervalSec * 1000);
-              }
-            },
-          );
-        },
-      );
+              },
+            );
+          },
+        );
+      });
 
       stopBtn.addEventListener("click", () => {
         if (mediaRecorder && mediaRecorder.state !== "inactive") {

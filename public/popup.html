@@ -10,15 +10,28 @@
         min-width: 200px;
         padding: 1em;
       }
+      .container {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 1em;
+        justify-content: center;
+      }
       button {
         width: 100%;
         padding: 0.5em;
         font-size: 1em;
       }
+      img {
+        border-radius: 4px;
+      }
     </style>
   </head>
   <body>
-    <button id="recordBtn">Start Recording</button>
+    <div class="container">
+      <img src="attendee-sm.png" alt="Attendee logo" />
+      <button id="recordBtn">Start Recording</button>
+    </div>
     <script src="popup.js"></script>
   </body>
 </html>
