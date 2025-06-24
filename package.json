@@ -1,0 +1,22 @@
+{
+  "name": "meeting-attendee-chrome-extension",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/chrome": "^0.0.326",
+    "@types/node": "^24.0.3",
+    "eslint": "^9.29.0",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-prettier": "^5.5.0",
+    "prettier": "^3.6.0",
+    "typescript": "^5.8.3"
+  },
+  "scripts": {
+    "build": "tsc",
+    "package": "yarn build && cd public && zip -r ../meeting-attendee-chrome-extension.zip ."
+  },
+  "dependencies": {
+    "jszip": "^3.10.1"
+  }
+}
