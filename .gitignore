@@ -8,3 +8,10 @@ public/*.js.map
 *.zip
 
 .idea
+
+.env
+
+__pycache__/
+*.pyc
+*.pyo
+.venv/
