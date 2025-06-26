@@ -14,6 +14,11 @@ from model_audio import transcribe_and_write_json, ensure_model_ready
 import asyncio
 import aiofiles
 from contextlib import asynccontextmanager
+import warnings
+
+warnings.filterwarnings(
+    "ignore", message="resource_tracker: There appear to be .* leaked semaphore objects"
+)
 
 WORKING_DIR = os.environ.get("WORKING_DIR", "./data")
 OUTPUT_DIR = os.environ.get("OUTPUT_DIR", "./output")
