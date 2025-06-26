@@ -1,18 +1,22 @@
+import asyncio
+import json
+import logging
 import os
 import shutil
-import logging
+import warnings
+from contextlib import asynccontextmanager
+from datetime import datetime
+from typing import Optional, Dict, Any, List
+from uuid import uuid4
+
+import aiofiles
+import uvicorn
+import logger as _
 from fastapi import FastAPI, UploadFile, File, Header, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional, Dict, Any, List
-from uuid import uuid4
-from datetime import datetime
-import uvicorn
+
 from server.src import transcribe
-import asyncio
-import aiofiles
-from contextlib import asynccontextmanager
-import warnings
 
 warnings.filterwarnings(
     "ignore", message="resource_tracker: There appear to be .* leaked semaphore objects"
@@ -85,8 +89,6 @@ async def transcribe_chunk_async(audio_path: str, output_path: str) -> None:
 
 
 async def merge_transcripts(transcript_files: List[str], out_path: str) -> None:
-    import json
-
     merged: Dict[str, Any] = {"segments": []}
     for f in sorted(transcript_files):
         async with aiofiles.open(f, "r", encoding="utf-8") as infile:
@@ -124,9 +126,9 @@ def start_session(req: SessionStartRequest) -> Dict[str, str]:
 
 @app.post("/sessions/{session_id}/chunk")
 async def upload_chunk(
-    session_id: str,
-    file: UploadFile = File(...),
-    mime_type: Optional[str] = Header(None),
+        session_id: str,
+        file: UploadFile = File(...),
+        mime_type: Optional[str] = Header(None),
 ) -> Dict[str, str]:
     mime_type = file.content_type
     logging.info(
@@ -164,9 +166,9 @@ async def upload_chunk(
 
 @app.post("/sessions/{session_id}/screenshot")
 def upload_screenshot(
-    session_id: str,
-    file: UploadFile = File(...),
-    mime_type: Optional[str] = Header(None),
+        session_id: str,
+        file: UploadFile = File(...),
+        mime_type: Optional[str] = Header(None),
 ) -> Dict[str, str]:
     mime_type = file.content_type
     logging.info(

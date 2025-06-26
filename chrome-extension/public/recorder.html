@@ -38,29 +38,38 @@
         margin: 2em 0 2em 0;
         height: 48px;
       }
-      .dot {
-        width: 18px;
-        height: 18px;
-        margin: 0 8px;
-        border-radius: 50%;
+      .bar {
+        width: 8px;
+        height: 24px;
+        margin: 0 4px;
+        border-radius: 4px;
         background: #d00;
-        opacity: 0.6;
-        animation: blink 1.2s infinite both;
+        opacity: 0.8;
+        animation: wave 1.2s infinite ease-in-out;
+        display: inline-block;
       }
-      .dot:nth-child(2) {
+      .bar:nth-child(1) {
+        animation-delay: 0s;
+      }
+      .bar:nth-child(2) {
         animation-delay: 0.2s;
       }
-      .dot:nth-child(3) {
+      .bar:nth-child(3) {
         animation-delay: 0.4s;
       }
-      @keyframes blink {
+      .bar:nth-child(4) {
+        animation-delay: 0.6s;
+      }
+      .bar:nth-child(5) {
+        animation-delay: 0.8s;
+      }
+      @keyframes wave {
         0%,
-        80%,
         100% {
-          opacity: 0.6;
+          height: 24px;
         }
-        40% {
-          opacity: 1;
+        50% {
+          height: 48px;
         }
       }
       #stopBtn {
@@ -94,9 +103,11 @@
       stopped.
     </div>
     <div class="recording-anim">
-      <div class="dot"></div>
-      <div class="dot"></div>
-      <div class="dot"></div>
+      <div class="bar"></div>
+      <div class="bar"></div>
+      <div class="bar"></div>
+      <div class="bar"></div>
+      <div class="bar"></div>
     </div>
     <button id="stopBtn">Stop Recording</button>
     <div id="status"></div>

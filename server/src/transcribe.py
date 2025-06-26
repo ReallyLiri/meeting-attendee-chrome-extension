@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import threading
 from typing import Optional
+
 import torch
 import whisperx
 from whisperx.diarize import DiarizationPipeline

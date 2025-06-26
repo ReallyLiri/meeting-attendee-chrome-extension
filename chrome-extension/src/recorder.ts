@@ -223,18 +223,17 @@
           tabId: targetTabId,
           captureAudio,
         });
-        // Fetch and normalize tab title once
         chrome.tabs.get(Number(targetTabId), async (tab: chrome.tabs.Tab) => {
           tabTitleNormalized = normalizeTitle(tab?.title || "tab");
-          if (streamToServer) {
+          let localStreamToServer = streamToServer;
+          if (localStreamToServer) {
             sessionId = await serverStartSession(tab?.title || "tab");
             if (!sessionId) {
               statusDiv.textContent =
-                "Error: Could not connect to server. Is it running?";
-              return;
+                "Server unavailable, falling back to local recording.";
+              localStreamToServer = false;
             }
           }
-          // Request tab capture from background
           chrome.runtime.sendMessage(
             { type: "REQUEST_TAB_CAPTURE", tabId: targetTabId, captureAudio },
             (response: { success?: boolean; error?: string }) => {
@@ -298,7 +297,7 @@
                         const audioBlob = new Blob(audioChunks, {
                           type: AUDIO_MIME_TYPE,
                         });
-                        if (streamToServer && sessionId) {
+                        if (localStreamToServer && sessionId) {
                           await serverSendAudio(sessionId, audioBlob);
                         } else {
                           const url = URL.createObjectURL(audioBlob);
@@ -308,9 +307,12 @@
                         }
                       }
                       if (captureScreenshots) {
-                        await captureScreenshot();
+                        await captureScreenshotWithMode(
+                          localStreamToServer,
+                          sessionId,
+                        );
                       }
-                      if (streamToServer && sessionId) {
+                      if (localStreamToServer && sessionId) {
                         await serverEndSession(sessionId);
                         statusDiv.textContent =
                           "Recording stopped and sent to server.";
@@ -327,17 +329,24 @@
                       window.close();
                     };
                     mediaRecorder.start();
-                    startAudioBatching();
+                    startAudioBatchingWithMode(localStreamToServer, sessionId);
                   } else {
-                    // No audio, just screenshots
                     statusDiv.textContent = "Recording... (screenshots only)";
                     if (captureScreenshots) {
-                      startScreenshotCapture(screenshotIntervalSec * 1000);
+                      startScreenshotCaptureWithMode(
+                        screenshotIntervalSec * 1000,
+                        localStreamToServer,
+                        sessionId,
+                      );
                     }
                   }
 
                   if (captureScreenshots && captureAudio && stream) {
-                    startScreenshotCapture(screenshotIntervalSec * 1000);
+                    startScreenshotCaptureWithMode(
+                      screenshotIntervalSec * 1000,
+                      localStreamToServer,
+                      sessionId,
+                    );
                   }
                 },
               );
@@ -354,7 +363,7 @@
             }
           } else {
             if (captureScreenshots) {
-              await captureScreenshot();
+              await captureScreenshotWithMode(false, null);
             }
             if (streamToServer && sessionId) {
               await serverEndSession(sessionId);
@@ -387,4 +396,72 @@
       },
     );
   });
+
+  // Add new helper functions for screenshot/audio batching with mode
+  function startScreenshotCaptureWithMode(
+    intervalMs: number,
+    toServer: boolean,
+    sessionId: string | null,
+  ) {
+    stopScreenshotCapture();
+    const capture = async () => {
+      if (toServer && sessionId) {
+        await serverSendScreenshot(sessionId, await getScreenshotDataUrl());
+      } else {
+        const filename = getTabFilename("png");
+        triggerDownload(await getScreenshotDataUrl(), filename);
+      }
+    };
+    capture();
+    screenshotInterval = window.setInterval(capture, intervalMs);
+  }
+
+  async function captureScreenshotWithMode(
+    toServer: boolean,
+    sessionId: string | null,
+  ) {
+    if (toServer && sessionId) {
+      await serverSendScreenshot(sessionId, await getScreenshotDataUrl());
+    } else {
+      const filename = getTabFilename("png");
+      triggerDownload(await getScreenshotDataUrl(), filename);
+    }
+  }
+
+  function startAudioBatchingWithMode(
+    toServer: boolean,
+    sessionId: string | null,
+  ) {
+    if (audioBatchInterval) clearInterval(audioBatchInterval);
+    audioBatchInterval = window.setInterval(async () => {
+      if (audioChunks.length > 0 && targetTabId) {
+        const batch = audioChunks.splice(0, audioChunks.length);
+        const audioBlob = new Blob(batch, { type: AUDIO_MIME_TYPE });
+        if (toServer && sessionId) {
+          await serverSendAudio(sessionId, audioBlob);
+        } else {
+          const url = URL.createObjectURL(audioBlob);
+          const filename = getTabFilename("webm");
+          triggerDownload(url, filename);
+          setTimeout(() => URL.revokeObjectURL(url), 100);
+        }
+      }
+    }, audioBatchIntervalSec * 1000);
+  }
+
+  async function getScreenshotDataUrl(): Promise<string> {
+    return await new Promise<string>((resolve, reject) => {
+      if (!targetTabId) return reject("No target tab");
+      chrome.runtime.sendMessage(
+        { type: "TAKE_SCREENSHOT", tabId: targetTabId },
+        (response) => {
+          if (chrome.runtime.lastError || !response || !response.dataUrl) {
+            reject(chrome.runtime.lastError || new Error("No screenshot data"));
+          } else {
+            resolve(response.dataUrl);
+          }
+        },
+      );
+    });
+  }
 })();
