@@ -96,13 +96,15 @@ def upload_chunk(
     ext = _get_ext_from_mime(mime_type)
     ts = _timestamp_str()
     norm_title = sessions[session_id]["norm_title"]
-    fname = f"{norm_title}_{ts}.{ext}"
-    fpath = os.path.join(WORKING_DIR, fname)
+    session_dir = os.path.join(OUTPUT_DIR, norm_title)
+    os.makedirs(session_dir, exist_ok=True)
+    fname = f"audio_{ts}.{ext}"
+    fpath = os.path.join(session_dir, fname)
     with open(fpath, "wb") as out:
         shutil.copyfileobj(file.file, out)
     sessions[session_id]["chunks"].append(fpath)
     logging.info(f"Received chunk for session {session_id}: {fpath}")
-    return {"status": "ok", "path": fname}
+    return {"status": "ok", "path": os.path.relpath(fpath, OUTPUT_DIR)}
 
 
 @app.post("/sessions/{session_id}/screenshot")
@@ -118,13 +120,15 @@ def upload_screenshot(
     ext = _get_ext_from_mime(mime_type)
     ts = _timestamp_str()
     norm_title = sessions[session_id]["norm_title"]
-    fname = f"{norm_title}_{ts}.{ext}"
-    fpath = os.path.join(WORKING_DIR, fname)
+    session_dir = os.path.join(OUTPUT_DIR, norm_title)
+    os.makedirs(session_dir, exist_ok=True)
+    fname = f"screenshot_{ts}.{ext}"
+    fpath = os.path.join(session_dir, fname)
     with open(fpath, "wb") as out:
         shutil.copyfileobj(file.file, out)
     sessions[session_id]["screenshots"].append(fpath)
     logging.info(f"Received screenshot for session {session_id}: {fpath}")
-    return {"status": "ok", "path": fname}
+    return {"status": "ok", "path": os.path.relpath(fpath, OUTPUT_DIR)}
 
 
 @app.post("/sessions/{session_id}/end")
@@ -132,17 +136,18 @@ def end_session(session_id: str, background_tasks: BackgroundTasks):
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
     session = sessions[session_id]
+    norm_title = session["norm_title"]
+    session_dir = os.path.join(OUTPUT_DIR, norm_title)
+    os.makedirs(session_dir, exist_ok=True)
     chunk_dir = tempfile.mkdtemp(dir=WORKING_DIR)
     for chunk_path in session["chunks"]:
         shutil.copy(chunk_path, chunk_dir)
-    out_path = os.path.join(
-        OUTPUT_DIR, f"{session['norm_title']}_{_timestamp_str()}.json"
-    )
+    out_path = os.path.join(session_dir, "transcription.json")
     background_tasks.add_task(
         transcribe_session_task, chunk_dir, out_path, session["chunks"]
     )
     logging.info(f"Session {session_id} ended. Transcription task dispatched.")
-    return {"status": "ok", "output": out_path}
+    return {"status": "ok", "output": os.path.relpath(out_path, OUTPUT_DIR)}
 
 
 def transcribe_session_task(chunk_dir, out_path, chunk_files):
@@ -162,4 +167,4 @@ def transcribe_session_task(chunk_dir, out_path, chunk_files):
 
 if __name__ == "__main__":
     logging.info(f"Starting FastAPI server on port {PORT}")
-    uvicorn.run("server.src.server:app", host="0.0.0.0", port=PORT, reload=False)
+    uvicorn.run("server:app", host="0.0.0.0", port=PORT, reload=True)
