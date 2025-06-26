@@ -1,5 +1,4 @@
 import os
-from tkinter import NO
 import whisperx
 from whisperx.diarize import DiarizationPipeline
 import torch
@@ -10,6 +9,8 @@ import json
 import threading
 import asyncio
 import logger as _
+import logging
+import argparse
 
 HF_TOKEN = os.environ.get("HF_TOKEN")
 MODEL_DIR = os.environ.get("MODEL_DIR")
@@ -49,12 +50,10 @@ def _init_model_once():
         model_kwargs = {"device": device, "compute_type": compute_type}
         if MODEL_DIR:
             model_kwargs["download_root"] = MODEL_DIR
-        import logging
-
+        global _model, _diarize_model
         logging.info(
             f"Loading WhisperX model (device={device}, compute_type={compute_type}, model_dir={MODEL_DIR})..."
         )
-        global _model, _diarize_model
         _model = whisperx.load_model("large-v2", **model_kwargs)
         logging.info("WhisperX model loaded.")
         logging.info("Loading diarization pipeline...")
@@ -64,8 +63,6 @@ def _init_model_once():
 
 
 def _transcribe_audio(audio_path: str, model, diarize_model):
-    import logging
-
     logging.info(f"Loading audio from: {audio_path}")
     audio = whisperx.load_audio(audio_path)
     logging.info("Running transcription...")
@@ -94,8 +91,6 @@ def _transcribe_audio(audio_path: str, model, diarize_model):
 
 
 def _concat_audio_files_in_dir(directory: str) -> str:
-    import logging
-
     logging.info(f"Concatenating audio files in directory: {directory}")
     files = sorted(
         [
@@ -143,11 +138,6 @@ def _get_output_json_path(audio_path: str) -> str:
 
 
 def transcribe_and_write_json(input_path: str, output_path: str):
-    import logging
-
-    # Ensure model is ready before running
-    import asyncio
-
     asyncio.run(ensure_model_ready())
     global _model, _diarize_model
     temp_concat_path = None
@@ -167,8 +157,6 @@ def transcribe_and_write_json(input_path: str, output_path: str):
 
 
 if __name__ == "__main__":
-    import argparse
-
     parser = argparse.ArgumentParser(
         description="Transcribe and diarize audio with WhisperX."
     )
