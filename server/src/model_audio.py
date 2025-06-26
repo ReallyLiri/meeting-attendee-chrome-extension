@@ -6,7 +6,7 @@ import tempfile
 import subprocess
 import shutil
 import json
-import server.src.logger as _
+import logger as _
 
 HF_TOKEN = os.environ.get("HF_TOKEN")
 MODEL_DIR = os.environ.get("MODEL_DIR")

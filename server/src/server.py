@@ -1,7 +1,7 @@
 import os
 import shutil
 import tempfile
-import server.src.logger as _
+import logger as _
 import logging
 from fastapi import FastAPI, UploadFile, File, Header, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,7 +10,7 @@ from typing import Optional
 from uuid import uuid4
 from datetime import datetime
 import uvicorn
-from server.src.model_audio import transcribe_and_write_json
+from model_audio import transcribe_and_write_json
 
 WORKING_DIR = os.environ.get("WORKING_DIR", "./data")
 OUTPUT_DIR = os.environ.get("OUTPUT_DIR", "./output")
