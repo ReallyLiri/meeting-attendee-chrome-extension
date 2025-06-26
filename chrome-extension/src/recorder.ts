@@ -194,6 +194,10 @@
   document.addEventListener("DOMContentLoaded", async () => {
     const stopBtn = document.getElementById("stopBtn") as HTMLButtonElement;
     const statusDiv = document.getElementById("status") as HTMLDivElement;
+    const recTitleDiv = document.querySelector(".rec-title") as HTMLDivElement;
+    const thisTabId = await new Promise<number>((resolve) => {
+      chrome.tabs.getCurrent((tab) => resolve(tab?.id ?? -1));
+    });
     chrome.storage.local.get(
       ["activeRecording"],
       (result: {
@@ -225,6 +229,19 @@
         });
         chrome.tabs.get(Number(targetTabId), async (tab: chrome.tabs.Tab) => {
           tabTitleNormalized = normalizeTitle(tab?.title || "tab");
+          const recTitle = `Recording: ${tab?.title || "Tab"}`;
+          document.title = recTitle;
+          if (recTitleDiv) recTitleDiv.textContent = recTitle;
+          chrome.runtime.sendMessage({
+            type: "START_RECORDING",
+            tabId: targetTabId,
+          });
+          if (thisTabId !== -1) {
+            chrome.runtime.sendMessage({
+              type: "START_RECORDING",
+              tabId: thisTabId,
+            });
+          }
           let localStreamToServer = streamToServer;
           if (localStreamToServer) {
             sessionId = await serverStartSession(tab?.title || "tab");
