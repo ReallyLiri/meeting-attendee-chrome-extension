@@ -10,7 +10,8 @@ from typing import Optional
 from uuid import uuid4
 from datetime import datetime
 import uvicorn
-from model_audio import transcribe_and_write_json
+from model_audio import transcribe_and_write_json, ensure_model_ready
+import asyncio
 
 WORKING_DIR = os.environ.get("WORKING_DIR", "./data")
 OUTPUT_DIR = os.environ.get("OUTPUT_DIR", "./output")
@@ -29,6 +30,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def startup_event():
+    logging.info("Pre-initializing model in background...")
+    asyncio.create_task(ensure_model_ready())
 
 
 def _normalize_title(title: str) -> str:
@@ -152,6 +159,7 @@ def end_session(session_id: str, background_tasks: BackgroundTasks):
 
 def transcribe_session_task(chunk_dir, out_path, chunk_files):
     try:
+        asyncio.run(ensure_model_ready())
         transcribe_and_write_json(chunk_dir, out_path)
         logging.info(f"Transcription written to {out_path}")
         for f in chunk_files:

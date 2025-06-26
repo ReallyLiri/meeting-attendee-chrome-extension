@@ -6,6 +6,8 @@ import tempfile
 import subprocess
 import shutil
 import json
+import threading
+import asyncio
 import logger as _
 
 HF_TOKEN = os.environ.get("HF_TOKEN")
@@ -20,26 +22,44 @@ else:
 
 batch_size = 16
 
+_model_lock = threading.Lock()
+_model_ready_event = threading.Event()
+_model = None
+_diarize_model = None
 
-def _model_init():
-    if shutil.which("ffmpeg") is None:
-        raise RuntimeError(
-            "ffmpeg not found. Please install ffmpeg and ensure it is in your PATH."
+
+async def ensure_model_ready():
+    if _model_ready_event.is_set():
+        return
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, _init_model_once)
+
+
+def _init_model_once():
+    if _model_ready_event.is_set():
+        return
+    with _model_lock:
+        if _model_ready_event.is_set():
+            return
+        if shutil.which("ffmpeg") is None:
+            raise RuntimeError(
+                "ffmpeg not found. Please install ffmpeg and ensure it is in your PATH."
+            )
+        model_kwargs = {"device": device, "compute_type": compute_type}
+        if MODEL_DIR:
+            model_kwargs["download_root"] = MODEL_DIR
+        import logging
+
+        logging.info(
+            f"Loading WhisperX model (device={device}, compute_type={compute_type}, model_dir={MODEL_DIR})..."
         )
-    model_kwargs = {"device": device, "compute_type": compute_type}
-    if MODEL_DIR:
-        model_kwargs["download_root"] = MODEL_DIR
-    import logging
-
-    logging.info(
-        f"Loading WhisperX model (device={device}, compute_type={compute_type}, model_dir={MODEL_DIR})..."
-    )
-    model = whisperx.load_model("large-v2", **model_kwargs)
-    logging.info("WhisperX model loaded.")
-    logging.info("Loading diarization pipeline...")
-    diarize_model = DiarizationPipeline(use_auth_token=HF_TOKEN, device=device)
-    logging.info("Diarization pipeline loaded.")
-    return model, diarize_model
+        global _model, _diarize_model
+        _model = whisperx.load_model("large-v2", **model_kwargs)
+        logging.info("WhisperX model loaded.")
+        logging.info("Loading diarization pipeline...")
+        _diarize_model = DiarizationPipeline(use_auth_token=HF_TOKEN, device=device)
+        logging.info("Diarization pipeline loaded.")
+        _model_ready_event.set()
 
 
 def _transcribe_audio(audio_path: str, model, diarize_model):
@@ -123,14 +143,18 @@ def _get_output_json_path(audio_path: str) -> str:
 def transcribe_and_write_json(input_path: str, output_path: str):
     import logging
 
-    model, diarize_model = _model_init()
+    # Ensure model is ready before running
+    import asyncio
+
+    asyncio.run(ensure_model_ready())
+    global _model, _diarize_model
     temp_concat_path = None
     try:
         if os.path.isdir(input_path):
             temp_concat_path = _concat_audio_files_in_dir(input_path)
-            result = _transcribe_audio(temp_concat_path, model, diarize_model)
+            result = _transcribe_audio(temp_concat_path, _model, _diarize_model)
         else:
-            result = _transcribe_audio(input_path, model, diarize_model)
+            result = _transcribe_audio(input_path, _model, _diarize_model)
         logging.info(f"Writing transcription to: {output_path}")
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(result, f, indent=2, ensure_ascii=False)
