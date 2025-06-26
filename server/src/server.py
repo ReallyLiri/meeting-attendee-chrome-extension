@@ -50,11 +50,6 @@ def _timestamp_str():
 
 
 def _get_ext_from_mime(mime: str) -> str:
-    import mimetypes
-
-    ext = mimetypes.guess_extension(mime)
-    if ext:
-        return ext.lstrip(".")
     if mime == "audio/webm":
         return "webm"
     if mime == "audio/ogg":

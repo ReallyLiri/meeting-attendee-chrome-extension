@@ -1,4 +1,5 @@
 import os
+from tkinter import NO
 import whisperx
 from whisperx.diarize import DiarizationPipeline
 import torch
@@ -86,6 +87,7 @@ def _transcribe_audio(audio_path: str, model, diarize_model):
     logging.info("Diarization complete. Assigning speakers...")
     result = whisperx.assign_word_speakers(diarize_segments, result)
     logging.info("Speaker assignment complete.")
+    result.pop("word_segments", None)
     for segment in result.get("segments", []):
         segment.pop("words", None)
     return result
