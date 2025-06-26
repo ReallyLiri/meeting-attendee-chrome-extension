@@ -1,8 +1,8 @@
 import os
 import shutil
 import tempfile
+import server.src.logger as _
 import logging
-import server.src.logging as _
 from fastapi import FastAPI, UploadFile, File, Header, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
