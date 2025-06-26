@@ -14,6 +14,12 @@ document.addEventListener("DOMContentLoaded", () => {
     "audioBatchInterval",
   ) as HTMLInputElement;
   const saveBtn = document.getElementById("saveBtn") as HTMLButtonElement;
+  const streamToServerCheckbox = document.getElementById(
+    "streamToServer",
+  ) as HTMLInputElement;
+  const serverUrlInput = document.getElementById(
+    "serverUrl",
+  ) as HTMLInputElement;
 
   function updateIntervalEnabled() {
     intervalInput.disabled = !captureScreenshotsCheckbox.checked;
@@ -23,24 +29,51 @@ document.addEventListener("DOMContentLoaded", () => {
     audioBatchInput.disabled = !captureAudioCheckbox.checked;
   }
 
-  chrome.storage.local.get(["config"], (result) => {
-    if (result.config) {
-      captureScreenshotsCheckbox.checked =
-        result.config.captureScreenshots !== false;
-      captureAudioCheckbox.checked = result.config.captureAudio !== false;
-      intervalInput.value = result.config.screenshotIntervalSec || 15;
-      audioBatchInput.value = result.config.audioBatchIntervalSec || 300;
-    } else {
-      captureScreenshotsCheckbox.checked = true;
-      captureAudioCheckbox.checked = true;
-      audioBatchInput.value = "300";
-    }
-    updateIntervalEnabled();
-    updateAudioBatchEnabled();
-  });
+  function updateServerUrlEnabled() {
+    serverUrlInput.disabled = !streamToServerCheckbox.checked;
+  }
+
+  chrome.storage.local.get(
+    ["config"],
+    (result: {
+      config?: {
+        captureScreenshots?: boolean;
+        captureAudio?: boolean;
+        screenshotIntervalSec?: number;
+        audioBatchIntervalSec?: number;
+        streamToServer?: boolean;
+        serverUrl?: string;
+      };
+    }) => {
+      if (result.config) {
+        captureScreenshotsCheckbox.checked =
+          result.config.captureScreenshots !== false;
+        captureAudioCheckbox.checked = result.config.captureAudio !== false;
+        intervalInput.value = (
+          result.config.screenshotIntervalSec || 15
+        ).toString();
+        audioBatchInput.value = (
+          result.config.audioBatchIntervalSec || 300
+        ).toString();
+        streamToServerCheckbox.checked = result.config.streamToServer === true;
+        serverUrlInput.value =
+          result.config.serverUrl || "http://localhost:8017";
+      } else {
+        captureScreenshotsCheckbox.checked = true;
+        captureAudioCheckbox.checked = true;
+        audioBatchInput.value = "300";
+        streamToServerCheckbox.checked = false;
+        serverUrlInput.value = "http://localhost:8017";
+      }
+      updateIntervalEnabled();
+      updateAudioBatchEnabled();
+      updateServerUrlEnabled();
+    },
+  );
 
   captureScreenshotsCheckbox.addEventListener("change", updateIntervalEnabled);
   captureAudioCheckbox.addEventListener("change", updateAudioBatchEnabled);
+  streamToServerCheckbox.addEventListener("change", updateServerUrlEnabled);
 
   saveBtn.addEventListener("click", () => {
     const config = {
@@ -48,10 +81,12 @@ document.addEventListener("DOMContentLoaded", () => {
       captureAudio: captureAudioCheckbox.checked,
       screenshotIntervalSec: parseInt(intervalInput.value, 10),
       audioBatchIntervalSec: parseInt(audioBatchInput.value, 10),
+      streamToServer: streamToServerCheckbox.checked,
+      serverUrl: serverUrlInput.value,
     };
     chrome.runtime.sendMessage(
       { type: "UPDATE_CONFIG", config },
-      (response) => {
+      (response: { success: boolean }) => {
         if (response.success) {
           alert("Configuration saved!");
         }

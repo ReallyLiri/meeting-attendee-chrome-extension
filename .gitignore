@@ -1,7 +1,7 @@
 node_modules/
 
-public/*.js
-public/*.js.map
+**/public/*.js
+**/public/*.js.map
 
 .DS_Store
 
@@ -16,4 +16,6 @@ __pycache__/
 *.pyo
 .venv/
 
-model/
+server/model/
+server/data/
+server/output/

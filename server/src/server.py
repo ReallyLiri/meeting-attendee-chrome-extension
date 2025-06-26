@@ -76,6 +76,7 @@ class SessionStartRequest(BaseModel):
 
 @app.post("/sessions/start")
 def start_session(req: SessionStartRequest):
+    logging.info(f"/sessions/start called with title: {req.title}")
     if not req.title:
         raise HTTPException(status_code=400, detail="Session title required")
     session_id = str(uuid4())
@@ -96,11 +97,18 @@ def upload_chunk(
     file: UploadFile = File(...),
     mime_type: Optional[str] = Header(None),
 ):
+    mime_type = file.content_type
+    logging.info(
+        f"/sessions/{session_id}/chunk called. filename={file.filename}, content_type={mime_type}"
+    )
+    if not mime_type:
+        raise HTTPException(
+            status_code=400, detail="content_type missing from uploaded file"
+        )
+    mime_type_simple = mime_type.split(";")[0].strip()
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
-    if not mime_type:
-        raise HTTPException(status_code=400, detail="mime_type header required")
-    ext = _get_ext_from_mime(mime_type)
+    ext = _get_ext_from_mime(mime_type_simple)
     ts = _timestamp_str()
     norm_title = sessions[session_id]["norm_title"]
     session_dir = os.path.join(OUTPUT_DIR, norm_title)
@@ -120,11 +128,18 @@ def upload_screenshot(
     file: UploadFile = File(...),
     mime_type: Optional[str] = Header(None),
 ):
+    mime_type = file.content_type
+    logging.info(
+        f"/sessions/{session_id}/screenshot called. filename={file.filename}, content_type={mime_type}"
+    )
+    if not mime_type:
+        raise HTTPException(
+            status_code=400, detail="content_type missing from uploaded file"
+        )
+    mime_type_simple = mime_type.split(";")[0].strip()
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
-    if not mime_type:
-        raise HTTPException(status_code=400, detail="mime_type header required")
-    ext = _get_ext_from_mime(mime_type)
+    ext = _get_ext_from_mime(mime_type_simple)
     ts = _timestamp_str()
     norm_title = sessions[session_id]["norm_title"]
     session_dir = os.path.join(OUTPUT_DIR, norm_title)
@@ -140,6 +155,7 @@ def upload_screenshot(
 
 @app.post("/sessions/{session_id}/end")
 def end_session(session_id: str, background_tasks: BackgroundTasks):
+    logging.info(f"/sessions/{session_id}/end called.")
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
     session = sessions[session_id]
@@ -158,7 +174,17 @@ def end_session(session_id: str, background_tasks: BackgroundTasks):
 
 
 def transcribe_session_task(chunk_dir, out_path, chunk_files):
+    import os
+
     try:
+        if not os.listdir(chunk_dir):
+            logging.warning(
+                f"No files found in directory: {chunk_dir}. Writing empty JSON to {out_path}."
+            )
+            with open(out_path, "w", encoding="utf-8") as f:
+                f.write("{}\n")
+            shutil.rmtree(chunk_dir)
+            return
         asyncio.run(ensure_model_ready())
         transcribe_and_write_json(chunk_dir, out_path)
         logging.info(f"Transcription written to {out_path}")
