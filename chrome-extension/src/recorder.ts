@@ -30,7 +30,11 @@
         const data = await resp.json();
         return data.session_id || null;
       }
-    } catch (e) {}
+    } catch (e) {
+      const statusDiv = document.getElementById("status");
+      if (statusDiv)
+        statusDiv.textContent = `Error: Could not connect to server (${e instanceof Error ? e.message : String(e)})`;
+    }
     return null;
   }
   async function serverEndSession(sessionId: string) {
@@ -38,7 +42,11 @@
       await fetch(`${serverUrl}/sessions/${sessionId}/end`, {
         method: "POST",
       });
-    } catch (e) {}
+    } catch (e) {
+      const statusDiv = document.getElementById("status");
+      if (statusDiv)
+        statusDiv.textContent = `Error: Could not end session on server (${e instanceof Error ? e.message : String(e)})`;
+    }
   }
   async function serverSendScreenshot(sessionId: string, dataUrl: string) {
     try {
@@ -50,7 +58,11 @@
         body: form,
         headers: { mime_type: blob.type },
       });
-    } catch (e) {}
+    } catch (e) {
+      const statusDiv = document.getElementById("status");
+      if (statusDiv)
+        statusDiv.textContent = `Error: Could not send screenshot to server (${e instanceof Error ? e.message : String(e)})`;
+    }
   }
   async function serverSendAudio(sessionId: string, audioBlob: Blob) {
     try {
@@ -61,7 +73,11 @@
         body: form,
         headers: { mime_type: audioBlob.type },
       });
-    } catch (e) {}
+    } catch (e) {
+      const statusDiv = document.getElementById("status");
+      if (statusDiv)
+        statusDiv.textContent = `Error: Could not send audio to server (${e instanceof Error ? e.message : String(e)})`;
+    }
   }
 
   const beforeUnloadHandler = (event: BeforeUnloadEvent) => {
@@ -128,7 +144,11 @@
         const filename = getTabFilename("png");
         triggerDownload(screenshot, filename);
       }
-    } catch (error) {}
+    } catch (error) {
+      const statusDiv = document.getElementById("status");
+      if (statusDiv)
+        statusDiv.textContent = `Error: ${error instanceof Error ? error.message : String(error)}`;
+    }
   }
 
   function startScreenshotCapture(intervalMs?: number): void {
@@ -208,6 +228,11 @@
           tabTitleNormalized = normalizeTitle(tab?.title || "tab");
           if (streamToServer) {
             sessionId = await serverStartSession(tab?.title || "tab");
+            if (!sessionId) {
+              statusDiv.textContent =
+                "Error: Could not connect to server. Is it running?";
+              return;
+            }
           }
           // Request tab capture from background
           chrome.runtime.sendMessage(

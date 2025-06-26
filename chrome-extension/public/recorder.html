@@ -3,11 +3,105 @@
   <head>
     <meta charset="UTF-8" />
     <title>Tab Recorder</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        max-width: 600px;
+        margin: 2em auto;
+      }
+      .banner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-bottom: 1.5em;
+      }
+      .rec-title {
+        text-align: center;
+        margin-bottom: 0.5em;
+        font-size: 2em;
+        font-weight: bold;
+      }
+      .warning {
+        color: #b00;
+        background: #fff3cd;
+        border: 1px solid #ffeeba;
+        border-radius: 6px;
+        padding: 1em;
+        margin: 1.5em 0 2em 0;
+        text-align: center;
+        font-weight: bold;
+      }
+      .recording-anim {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 2em 0 2em 0;
+        height: 48px;
+      }
+      .dot {
+        width: 18px;
+        height: 18px;
+        margin: 0 8px;
+        border-radius: 50%;
+        background: #d00;
+        opacity: 0.6;
+        animation: blink 1.2s infinite both;
+      }
+      .dot:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+      .dot:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+      @keyframes blink {
+        0%,
+        80%,
+        100% {
+          opacity: 0.6;
+        }
+        40% {
+          opacity: 1;
+        }
+      }
+      #stopBtn {
+        display: block;
+        margin: 2em auto 1em auto;
+        padding: 0.5em 1.5em;
+        font-size: 1.1em;
+      }
+      #status {
+        margin-top: 2em;
+        text-align: center;
+        font-size: 1.1em;
+      }
+      .bottom-img {
+        display: flex;
+        justify-content: center;
+        margin-top: 3em;
+      }
+      .bottom-img img {
+        padding-top: 32px;
+        max-height: 40vh;
+        border-radius: 32px;
+      }
+    </style>
     <script src="recorder.js"></script>
   </head>
   <body>
-    <h2>Recording in progress...</h2>
+    <div class="rec-title">Attendee Recorder</div>
+    <div class="warning">
+      Do not close this tab while recording is on, or it will be automatically
+      stopped.
+    </div>
+    <div class="recording-anim">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
     <button id="stopBtn">Stop Recording</button>
     <div id="status"></div>
+    <div class="bottom-img">
+      <img src="attendee.png" alt="Attendee logo" />
+    </div>
   </body>
 </html>
