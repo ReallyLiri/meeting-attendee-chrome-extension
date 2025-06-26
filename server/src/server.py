@@ -1,7 +1,5 @@
 import os
 import shutil
-import tempfile
-import logger as _
 import logging
 from fastapi import FastAPI, UploadFile, File, Header, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,7 +8,7 @@ from typing import Optional
 from uuid import uuid4
 from datetime import datetime
 import uvicorn
-from model_audio import transcribe_and_write_json, ensure_model_ready
+from server.src.transcribe import ensure_model_ready
 import asyncio
 import aiofiles
 from contextlib import asynccontextmanager
@@ -80,8 +78,6 @@ class SessionStartRequest(BaseModel):
 
 
 async def transcribe_chunk_async(audio_path: str, output_path: str):
-    import model_audio
-
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(
         None, model_audio.transcribe_and_write_json, audio_path, output_path

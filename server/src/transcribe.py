@@ -1,19 +1,21 @@
+import argparse
+import asyncio
+import json
+import logging
 import os
+import shutil
+import subprocess
+import tempfile
+import threading
+
+import torch
 import whisperx
 from whisperx.diarize import DiarizationPipeline
-import torch
-import tempfile
-import subprocess
-import shutil
-import json
-import threading
-import asyncio
-import logger as _
-import logging
-import argparse
 
 HF_TOKEN = os.environ.get("HF_TOKEN")
 MODEL_DIR = os.environ.get("MODEL_DIR")
+
+WHISPERX_MODEL = "large-v2"
 
 if torch.cuda.is_available():
     device = "cuda"
@@ -26,7 +28,8 @@ batch_size = 16
 
 _model_lock = threading.Lock()
 _model_ready_event = threading.Event()
-_model = None
+
+_whisper_model = None
 _diarize_model = None
 
 
@@ -49,24 +52,29 @@ def _init_model_once():
             )
         model_kwargs = {"device": device, "compute_type": compute_type}
         if MODEL_DIR:
+            os.makedirs(MODEL_DIR, exist_ok=True)
             model_kwargs["download_root"] = MODEL_DIR
-        global _model, _diarize_model
+
+        global _whisper_model, _diarize_model
         logging.info(
             f"Loading WhisperX model (device={device}, compute_type={compute_type}, model_dir={MODEL_DIR})..."
         )
-        _model = whisperx.load_model("large-v2", **model_kwargs)
+        _whisper_model = whisperx.load_model(WHISPERX_MODEL, **model_kwargs)
         logging.info("WhisperX model loaded.")
         logging.info("Loading diarization pipeline...")
         _diarize_model = DiarizationPipeline(use_auth_token=HF_TOKEN, device=device)
         logging.info("Diarization pipeline loaded.")
+
         _model_ready_event.set()
 
 
-def _transcribe_audio(audio_path: str, model, diarize_model):
+def _transcribe_audio(audio_path: str):
+    global _whisper_model, _diarize_model
+
     logging.info(f"Loading audio from: {audio_path}")
     audio = whisperx.load_audio(audio_path)
     logging.info("Running transcription...")
-    result = model.transcribe(audio, batch_size=batch_size)
+    result = _whisper_model.transcribe(audio, batch_size=batch_size)
     logging.info("Transcription complete. Running alignment...")
     align_model, align_metadata = whisperx.load_align_model(
         language_code=result["language"], device=device
@@ -80,7 +88,7 @@ def _transcribe_audio(audio_path: str, model, diarize_model):
         return_char_alignments=False,
     )
     logging.info("Alignment complete. Running diarization...")
-    diarize_segments = diarize_model(audio)
+    diarize_segments = _diarize_model(audio)
     logging.info("Diarization complete. Assigning speakers...")
     result = whisperx.assign_word_speakers(diarize_segments, result)
     logging.info("Speaker assignment complete.")
@@ -139,14 +147,13 @@ def _get_output_json_path(audio_path: str) -> str:
 
 def transcribe_and_write_json(input_path: str, output_path: str):
     asyncio.run(ensure_model_ready())
-    global _model, _diarize_model
     temp_concat_path = None
     try:
         if os.path.isdir(input_path):
             temp_concat_path = _concat_audio_files_in_dir(input_path)
-            result = _transcribe_audio(temp_concat_path, _model, _diarize_model)
+            result = _transcribe_audio(temp_concat_path)
         else:
-            result = _transcribe_audio(input_path, _model, _diarize_model)
+            result = _transcribe_audio(input_path)
         logging.info(f"Writing transcription to: {output_path}")
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(result, f, indent=2, ensure_ascii=False)
