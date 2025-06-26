@@ -7,16 +7,18 @@ import shutil
 import subprocess
 import tempfile
 import threading
-
+from typing import Optional
 import torch
 import whisperx
 from whisperx.diarize import DiarizationPipeline
 
-HF_TOKEN = os.environ.get("HF_TOKEN")
-MODEL_DIR = os.environ.get("MODEL_DIR")
+HF_TOKEN: Optional[str] = os.environ.get("HF_TOKEN")
+MODEL_DIR: Optional[str] = os.environ.get("MODEL_DIR")
 
-WHISPERX_MODEL = "large-v2"
+WHISPERX_MODEL: str = "large-v2"
 
+device: str
+compute_type: str
 if torch.cuda.is_available():
     device = "cuda"
     compute_type = "float16"
@@ -24,7 +26,7 @@ else:
     device = "cpu"
     compute_type = "int8"
 
-batch_size = 16
+batch_size: int = 16
 
 _model_lock = threading.Lock()
 _model_ready_event = threading.Event()
@@ -33,14 +35,14 @@ _whisper_model = None
 _diarize_model = None
 
 
-async def ensure_model_ready():
+async def ensure_model_ready() -> None:
     if _model_ready_event.is_set():
         return
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, _init_model_once)
 
 
-def _init_model_once():
+def _init_model_once() -> None:
     if _model_ready_event.is_set():
         return
     with _model_lock:
@@ -54,7 +56,6 @@ def _init_model_once():
         if MODEL_DIR:
             os.makedirs(MODEL_DIR, exist_ok=True)
             model_kwargs["download_root"] = MODEL_DIR
-
         global _whisper_model, _diarize_model
         logging.info(
             f"Loading WhisperX model (device={device}, compute_type={compute_type}, model_dir={MODEL_DIR})..."
@@ -64,13 +65,11 @@ def _init_model_once():
         logging.info("Loading diarization pipeline...")
         _diarize_model = DiarizationPipeline(use_auth_token=HF_TOKEN, device=device)
         logging.info("Diarization pipeline loaded.")
-
         _model_ready_event.set()
 
 
-def _transcribe_audio(audio_path: str):
+def _transcribe_audio(audio_path: str) -> dict:
     global _whisper_model, _diarize_model
-
     logging.info(f"Loading audio from: {audio_path}")
     audio = whisperx.load_audio(audio_path)
     logging.info("Running transcription...")
@@ -145,9 +144,9 @@ def _get_output_json_path(audio_path: str) -> str:
     return base + ".transcription.json"
 
 
-def transcribe_and_write_json(input_path: str, output_path: str):
+def transcribe_and_write_json(input_path: str, output_path: str) -> None:
     asyncio.run(ensure_model_ready())
-    temp_concat_path = None
+    temp_concat_path: Optional[str] = None
     try:
         if os.path.isdir(input_path):
             temp_concat_path = _concat_audio_files_in_dir(input_path)

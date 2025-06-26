@@ -4,11 +4,11 @@ import logging
 from fastapi import FastAPI, UploadFile, File, Header, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict, Any, List
 from uuid import uuid4
 from datetime import datetime
 import uvicorn
-from server.src.transcribe import ensure_model_ready
+from server.src import transcribe
 import asyncio
 import aiofiles
 from contextlib import asynccontextmanager
@@ -18,20 +18,20 @@ warnings.filterwarnings(
     "ignore", message="resource_tracker: There appear to be .* leaked semaphore objects"
 )
 
-WORKING_DIR = os.environ.get("WORKING_DIR", "./data")
-OUTPUT_DIR = os.environ.get("OUTPUT_DIR", "./output")
-PORT = int(os.environ.get("PORT", 8017))
+WORKING_DIR: str = os.environ.get("WORKING_DIR", "./data")
+OUTPUT_DIR: str = os.environ.get("OUTPUT_DIR", "./output")
+PORT: int = int(os.environ.get("PORT", 8017))
 
 os.makedirs(WORKING_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-sessions = {}
+sessions: Dict[str, Dict[str, Any]] = {}
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logging.info("Pre-initializing model in background...")
-    asyncio.create_task(ensure_model_ready())
+    asyncio.create_task(transcribe.ensure_model_ready())
     yield
 
 
@@ -53,7 +53,7 @@ def _normalize_title(title: str) -> str:
     )
 
 
-def _timestamp_str():
+def _timestamp_str() -> str:
     return datetime.now().strftime("%Y.%m.%d.%H.%M")
 
 
@@ -77,17 +77,17 @@ class SessionStartRequest(BaseModel):
     title: str
 
 
-async def transcribe_chunk_async(audio_path: str, output_path: str):
+async def transcribe_chunk_async(audio_path: str, output_path: str) -> None:
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(
-        None, model_audio.transcribe_and_write_json, audio_path, output_path
+        None, transcribe.transcribe_and_write_json, audio_path, output_path
     )
 
 
-async def merge_transcripts(transcript_files, out_path):
+async def merge_transcripts(transcript_files: List[str], out_path: str) -> None:
     import json
 
-    merged = {"segments": []}
+    merged: Dict[str, Any] = {"segments": []}
     for f in sorted(transcript_files):
         async with aiofiles.open(f, "r", encoding="utf-8") as infile:
             data = json.loads(await infile.read())
@@ -95,7 +95,6 @@ async def merge_transcripts(transcript_files, out_path):
                 merged["segments"].extend(data["segments"])
     async with aiofiles.open(out_path, "w", encoding="utf-8") as outfile:
         await outfile.write(json.dumps(merged, indent=2, ensure_ascii=False))
-    # Cleanup partial transcript files
     for f in transcript_files:
         try:
             os.remove(f)
@@ -105,12 +104,12 @@ async def merge_transcripts(transcript_files, out_path):
 
 
 @app.post("/sessions/start")
-def start_session(req: SessionStartRequest):
+def start_session(req: SessionStartRequest) -> Dict[str, str]:
     logging.info(f"/sessions/start called with title: {req.title}")
     if not req.title:
         raise HTTPException(status_code=400, detail="Session title required")
-    session_id = str(uuid4())
-    norm_title = _normalize_title(req.title)
+    session_id: str = str(uuid4())
+    norm_title: str = _normalize_title(req.title)
     sessions[session_id] = {
         "title": req.title,
         "norm_title": norm_title,
@@ -128,7 +127,7 @@ async def upload_chunk(
     session_id: str,
     file: UploadFile = File(...),
     mime_type: Optional[str] = Header(None),
-):
+) -> Dict[str, str]:
     mime_type = file.content_type
     logging.info(
         f"/sessions/{session_id}/chunk called. filename={file.filename}, content_type={mime_type}"
@@ -137,14 +136,13 @@ async def upload_chunk(
         raise HTTPException(
             status_code=400, detail="content_type missing from uploaded file"
         )
-    mime_type_simple = mime_type.split(";")[0].strip()
+    mime_type_simple: str = mime_type.split(";")[0].strip()
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
-    ext = _get_ext_from_mime(mime_type_simple)
-    ts = _timestamp_str()
-    # Save audio chunk to WORKING_DIR (data), not output
-    chunk_fname = f"audio_{ts}_{session_id}.{ext}"
-    chunk_fpath = os.path.join(WORKING_DIR, chunk_fname)
+    ext: str = _get_ext_from_mime(mime_type_simple)
+    ts: str = _timestamp_str()
+    chunk_fname: str = f"audio_{ts}_{session_id}.{ext}"
+    chunk_fpath: str = os.path.join(WORKING_DIR, chunk_fname)
     async with aiofiles.open(chunk_fpath, "wb") as out:
         while True:
             chunk = await file.read(1024 * 1024)
@@ -152,8 +150,9 @@ async def upload_chunk(
                 break
             await out.write(chunk)
     sessions[session_id]["chunks"].append(chunk_fpath)
-    # Partial transcript goes to WORKING_DIR (data)
-    transcript_path = os.path.join(WORKING_DIR, f"transcript_{ts}_{session_id}.json")
+    transcript_path: str = os.path.join(
+        WORKING_DIR, f"transcript_{ts}_{session_id}.json"
+    )
     task = asyncio.create_task(transcribe_chunk_async(chunk_fpath, transcript_path))
     sessions[session_id]["transcript_files"].append(transcript_path)
     sessions[session_id]["transcription_tasks"].append(task)
@@ -168,7 +167,7 @@ def upload_screenshot(
     session_id: str,
     file: UploadFile = File(...),
     mime_type: Optional[str] = Header(None),
-):
+) -> Dict[str, str]:
     mime_type = file.content_type
     logging.info(
         f"/sessions/{session_id}/screenshot called. filename={file.filename}, content_type={mime_type}"
@@ -177,16 +176,16 @@ def upload_screenshot(
         raise HTTPException(
             status_code=400, detail="content_type missing from uploaded file"
         )
-    mime_type_simple = mime_type.split(";")[0].strip()
+    mime_type_simple: str = mime_type.split(";")[0].strip()
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
-    ext = _get_ext_from_mime(mime_type_simple)
-    ts = _timestamp_str()
-    norm_title = sessions[session_id]["norm_title"]
-    session_dir = os.path.join(OUTPUT_DIR, norm_title)
+    ext: str = _get_ext_from_mime(mime_type_simple)
+    ts: str = _timestamp_str()
+    norm_title: str = sessions[session_id]["norm_title"]
+    session_dir: str = os.path.join(OUTPUT_DIR, norm_title)
     os.makedirs(session_dir, exist_ok=True)
-    fname = f"screenshot_{ts}.{ext}"
-    fpath = os.path.join(session_dir, fname)
+    fname: str = f"screenshot_{ts}.{ext}"
+    fpath: str = os.path.join(session_dir, fname)
     with open(fpath, "wb") as out:
         shutil.copyfileobj(file.file, out)
     sessions[session_id]["screenshots"].append(fpath)
