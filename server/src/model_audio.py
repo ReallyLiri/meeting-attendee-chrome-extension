@@ -66,6 +66,8 @@ def _transcribe_audio(audio_path: str, model, diarize_model):
     logging.info("Diarization complete. Assigning speakers...")
     result = whisperx.assign_word_speakers(diarize_segments, result)
     logging.info("Speaker assignment complete.")
+    for segment in result.get("segments", []):
+        segment.pop("words", None)
     return result
 
 
