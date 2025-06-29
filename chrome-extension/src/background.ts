@@ -79,8 +79,7 @@ chrome.runtime.onMessage.addListener(
       const height = senderTab?.height;
       const x = 0;
       const y = 0;
-      // Only send capture command if debugger is attached
-      if (debuggerAttachedTabs[msg.tabId]) {
+      function doCapture() {
         chrome.debugger.sendCommand(debuggee, "Page.enable", {}, () => {
           const params: any = {
             format: "png",
@@ -96,7 +95,7 @@ chrome.runtime.onMessage.addListener(
             "Page.captureScreenshot",
             params,
             (result) => {
-              const data = (result as { data?: string }).data;
+              const data = (result as { data?: string })?.data;
               if (data) {
                 sendResponse({ dataUrl: "data:image/png;base64," + data });
               } else {
@@ -105,8 +104,14 @@ chrome.runtime.onMessage.addListener(
             },
           );
         });
+      }
+      if (debuggerAttachedTabs[msg.tabId]) {
+        doCapture();
       } else {
-        sendResponse({ error: "Debugger not attached" });
+        chrome.debugger.attach(debuggee, "1.3", () => {
+          debuggerAttachedTabs[msg.tabId!] = true;
+          doCapture();
+        });
       }
       return true;
     }
@@ -150,3 +155,10 @@ chrome.tabs.onRemoved.addListener(
     }
   },
 );
+
+chrome.debugger.onDetach.addListener((source, reason) => {
+  if (source.tabId !== undefined) {
+    debuggerAttachedTabs[source.tabId] = false;
+    console.warn(`Debugger detached from tab ${source.tabId}: ${reason}`);
+  }
+});

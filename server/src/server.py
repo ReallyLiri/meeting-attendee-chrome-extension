@@ -142,8 +142,10 @@ async def upload_chunk(
         raise HTTPException(status_code=404, detail="Session not found")
     ext: str = _get_ext_from_mime(mime_type_simple)
     ts: str = _timestamp_str()
+    chunk_dir: str = os.path.join(WORKING_DIR, session_id)
+    os.makedirs(chunk_dir, exist_ok=True)
     chunk_fname: str = f"audio_{ts}_{session_id}.{ext}"
-    chunk_fpath: str = os.path.join(WORKING_DIR, chunk_fname)
+    chunk_fpath: str = os.path.join(chunk_dir, chunk_fname)
     async with aiofiles.open(chunk_fpath, "wb") as out:
         while True:
             chunk = await file.read(1024 * 1024)
@@ -151,24 +153,7 @@ async def upload_chunk(
                 break
             await out.write(chunk)
     sessions[session_id]["chunks"].append(chunk_fpath)
-    transcript_path: str = os.path.join(
-        WORKING_DIR, f"transcript_{ts}_{session_id}.json"
-    )
-    prev_embeddings = sessions[session_id].get("speaker_embeddings")
-
-    def transcribe_with_embeddings_sync():
-        result, speaker_embeddings = transcribe.transcribe_and_write_json(
-            chunk_fpath, transcript_path, prev_embeddings
-        )
-        sessions[session_id]["speaker_embeddings"] = speaker_embeddings
-
-    loop = asyncio.get_event_loop()
-    task = loop.run_in_executor(None, transcribe_with_embeddings_sync)
-    sessions[session_id]["transcript_files"].append(transcript_path)
-    sessions[session_id]["transcription_tasks"].append(task)
-    logging.info(
-        f"Received chunk for session {session_id}: {chunk_fpath}, dispatched transcription to {transcript_path}"
-    )
+    logging.info(f"Saved audio chunk for session {session_id}: {chunk_fpath}")
     return {"status": "ok", "path": os.path.relpath(chunk_fpath, WORKING_DIR)}
 
 
@@ -214,11 +199,42 @@ async def end_session(session_id: str, background_tasks: BackgroundTasks):
     os.makedirs(session_dir, exist_ok=True)
     out_path = os.path.join(session_dir, "transcription.json")
 
-    # Wait for all transcription tasks to finish, then merge
     async def finalize():
-        await asyncio.gather(*session["transcription_tasks"], return_exceptions=True)
-        await merge_transcripts(session["transcript_files"], out_path)
-        logging.info(f"Merged transcripts for session {session_id} into {out_path}")
+        chunk_dir = os.path.join(WORKING_DIR, session_id)
+        logging.info(
+            f"Concatenating {len(session['chunks'])} audio chunks for session {session_id}"
+        )
+        concat_path = os.path.join(chunk_dir, f"concat_{session_id}.webm")
+        with open(concat_path, "wb") as outfile:
+            for chunk_path in session["chunks"]:
+                with open(chunk_path, "rb") as infile:
+                    outfile.write(infile.read())
+        logging.info(f"Combined audio written to {concat_path}")
+        # Transcribe the combined audio
+        success = False
+        try:
+            logging.info(f"Starting transcription for {concat_path} -> {out_path}")
+            result = await transcribe.transcribe_and_write_json(concat_path, out_path)
+            logging.info(f"Finished transcription for {concat_path} -> {out_path}")
+            success = True
+        except Exception as e:
+            logging.error(f"Transcription failed for {concat_path}: {e}", exc_info=True)
+        # Clean up only if successful
+        if success:
+            import shutil
+
+            try:
+                shutil.rmtree(chunk_dir)
+                logging.info(f"Deleted session chunk directory {chunk_dir}")
+            except Exception as e:
+                logging.warning(
+                    f"Failed to delete session chunk directory {chunk_dir}: {e}"
+                )
+        else:
+            logging.info(
+                f"Preserved session chunk directory {chunk_dir} for debugging."
+            )
+        logging.info(f"Session {session_id} finalized.")
 
     background_tasks.add_task(finalize)
     logging.info(f"Session {session_id} ended. Finalization task dispatched.")
