@@ -7,7 +7,7 @@
   let targetTabId: number | null = null;
   let screenshotInterval: number | null = null;
   let audioBatchInterval: number | null = null;
-  let audioBatchIntervalSec: number = 300; // default 5*60 seconds
+  let audioBatchIntervalSec: number = 60; // default 1*60 seconds
   const AUDIO_MIME_TYPE = "audio/webm;codecs=opus";
   let tabTitleNormalized: string | null = null;
 
@@ -220,8 +220,8 @@
         const config = active.config || {};
         const captureScreenshots = config.captureScreenshots !== false;
         const captureAudio = config.captureAudio !== false;
-        const screenshotIntervalSec = config.screenshotIntervalSec || 5;
-        audioBatchIntervalSec = config.audioBatchIntervalSec || 300;
+        const screenshotIntervalSec = config.screenshotIntervalSec || 30;
+        audioBatchIntervalSec = config.audioBatchIntervalSec || 60;
         statusDiv.textContent = "Requesting tab audio capture...";
         console.log("Requesting tab capture from background", {
           tabId: targetTabId,

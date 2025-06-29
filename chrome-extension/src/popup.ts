@@ -45,8 +45,9 @@ document.addEventListener("DOMContentLoaded", () => {
           config: {
             captureScreenshots: true,
             captureAudio: true,
-            screenshotIntervalSec: 5,
-            streamToServer: false,
+            screenshotIntervalSec: 30,
+            audioBatchIntervalSec: 60,
+            streamToServer: true,
             serverUrl: "http://localhost:8017",
           },
         },
@@ -55,6 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
             captureScreenshots?: boolean;
             captureAudio?: boolean;
             screenshotIntervalSec?: number;
+            audioBatchIntervalSec?: number;
             streamToServer?: boolean;
             serverUrl?: string;
           };

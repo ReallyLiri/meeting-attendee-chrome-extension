@@ -119,7 +119,7 @@ def _concat_audio_files_in_dir(directory: str) -> str:
     if not files:
         raise ValueError(f"No files found in directory: {directory}")
     with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".txt"
+        mode="w", delete=False, suffix=".txt"
     ) as list_file:
         for f in files:
             list_file.write(f"file '{f}'\n")

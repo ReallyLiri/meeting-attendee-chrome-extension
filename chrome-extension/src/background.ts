@@ -3,6 +3,8 @@
 let recordingTabs: Record<number, boolean> = {};
 // Map from recorderTabId to targetTabId
 let recorderTabToTargetTab: Record<number, number> = {};
+// Track which tabs have the debugger attached
+let debuggerAttachedTabs: Record<number, boolean> = {};
 
 function updateBadge(tabId: number, recording: boolean) {
   console.log(`updateBadge: tabId=${tabId}, recording=${recording}`);
@@ -40,6 +42,12 @@ chrome.runtime.onMessage.addListener(
       console.log(`START_RECORDING for tabId=${msg.tabId}`);
       recordingTabs[msg.tabId] = true;
       updateBadge(msg.tabId, true);
+      // Attach debugger if not already attached
+      if (typeof msg.tabId === "number" && !debuggerAttachedTabs[msg.tabId]) {
+        chrome.debugger.attach({ tabId: msg.tabId }, "1.3", () => {
+          debuggerAttachedTabs[msg.tabId!] = true;
+        });
+      }
       sendResponse({ recording: true });
       return true;
     }
@@ -47,6 +55,12 @@ chrome.runtime.onMessage.addListener(
       console.log(`STOP_RECORDING for tabId=${msg.tabId}`);
       recordingTabs[msg.tabId] = false;
       updateBadge(msg.tabId, false);
+      // Detach debugger if attached
+      if (typeof msg.tabId === "number" && debuggerAttachedTabs[msg.tabId]) {
+        chrome.debugger.detach({ tabId: msg.tabId }, () => {
+          debuggerAttachedTabs[msg.tabId!] = false;
+        });
+      }
       sendResponse({ recording: false });
       return true;
     }
@@ -60,13 +74,13 @@ chrome.runtime.onMessage.addListener(
     if (msg.type === "TAKE_SCREENSHOT" && msg.tabId) {
       console.log(`TAKE_SCREENSHOT for tabId=${msg.tabId}`);
       const debuggee = { tabId: msg.tabId };
-      // Use sender.tab for viewport size if available
       const senderTab = sender && sender.tab;
       const width = senderTab?.width;
       const height = senderTab?.height;
       const x = 0;
       const y = 0;
-      chrome.debugger.attach(debuggee, "1.3", () => {
+      // Only send capture command if debugger is attached
+      if (debuggerAttachedTabs[msg.tabId]) {
         chrome.debugger.sendCommand(debuggee, "Page.enable", {}, () => {
           const params: any = {
             format: "png",
@@ -82,19 +96,19 @@ chrome.runtime.onMessage.addListener(
             "Page.captureScreenshot",
             params,
             (result) => {
-              chrome.debugger.detach(debuggee, () => {
-                const data = (result as { data?: string }).data;
-                if (data) {
-                  sendResponse({ dataUrl: "data:image/png;base64," + data });
-                } else {
-                  sendResponse({ error: "Failed to capture screenshot" });
-                }
-              });
+              const data = (result as { data?: string }).data;
+              if (data) {
+                sendResponse({ dataUrl: "data:image/png;base64," + data });
+              } else {
+                sendResponse({ error: "Failed to capture screenshot" });
+              }
             },
           );
         });
-      });
-      return true; // Keep the message channel open for async response
+      } else {
+        sendResponse({ error: "Debugger not attached" });
+      }
+      return true;
     }
     if (
       msg.type === "REGISTER_RECORDER_TAB" &&

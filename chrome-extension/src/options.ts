@@ -50,19 +50,20 @@ document.addEventListener("DOMContentLoaded", () => {
           result.config.captureScreenshots !== false;
         captureAudioCheckbox.checked = result.config.captureAudio !== false;
         intervalInput.value = (
-          result.config.screenshotIntervalSec || 15
+          result.config.screenshotIntervalSec || 30
         ).toString();
         audioBatchInput.value = (
-          result.config.audioBatchIntervalSec || 300
+          result.config.audioBatchIntervalSec || 60
         ).toString();
-        streamToServerCheckbox.checked = result.config.streamToServer === true;
+        streamToServerCheckbox.checked = result.config.streamToServer !== false;
         serverUrlInput.value =
           result.config.serverUrl || "http://localhost:8017";
       } else {
         captureScreenshotsCheckbox.checked = true;
         captureAudioCheckbox.checked = true;
-        audioBatchInput.value = "300";
-        streamToServerCheckbox.checked = false;
+        intervalInput.value = "30";
+        audioBatchInput.value = "60";
+        streamToServerCheckbox.checked = true;
         serverUrlInput.value = "http://localhost:8017";
       }
       updateIntervalEnabled();
