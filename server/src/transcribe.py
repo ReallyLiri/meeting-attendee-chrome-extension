@@ -69,7 +69,7 @@ def _init_model_once() -> None:
         _model_ready_event.set()
 
 
-def _transcribe_audio(audio_path: str) -> dict:
+def _transcribe_audio(audio_path: str, prev_embeddings=None) -> tuple:
     global _whisper_model, _diarize_model
     logging.info(f"Loading audio from: {audio_path}")
     audio = whisperx.load_audio(audio_path)
@@ -88,14 +88,23 @@ def _transcribe_audio(audio_path: str) -> dict:
         return_char_alignments=False,
     )
     logging.info("Alignment complete. Running diarization...")
-    diarize_segments = _diarize_model(audio)
+    diarize_out = _diarize_model(
+        audio, return_embeddings=True, speaker_embeddings=prev_embeddings
+    )
+    if isinstance(diarize_out, tuple):
+        diarize_segments, speaker_embeddings = diarize_out
+    else:
+        diarize_segments = diarize_out
+        speaker_embeddings = None
     logging.info("Diarization complete. Assigning speakers...")
-    result = whisperx.assign_word_speakers(diarize_segments, result)
+    result = whisperx.assign_word_speakers(
+        diarize_segments, result, speaker_embeddings=speaker_embeddings
+    )
     logging.info("Speaker assignment complete.")
     result.pop("word_segments", None)
     for segment in result.get("segments", []):
         segment.pop("words", None)
-    return result
+    return result, speaker_embeddings
 
 
 def _concat_audio_files_in_dir(directory: str) -> str:
@@ -110,7 +119,7 @@ def _concat_audio_files_in_dir(directory: str) -> str:
     if not files:
         raise ValueError(f"No files found in directory: {directory}")
     with tempfile.NamedTemporaryFile(
-        mode="w", delete=False, suffix=".txt"
+            mode="w", delete=False, suffix=".txt"
     ) as list_file:
         for f in files:
             list_file.write(f"file '{f}'\n")
@@ -145,18 +154,21 @@ def _get_output_json_path(audio_path: str) -> str:
     return base + ".transcription.json"
 
 
-def transcribe_and_write_json(input_path: str, output_path: str) -> None:
+def transcribe_and_write_json(input_path: str, output_path: str, prev_embeddings=None):
     asyncio.run(ensure_model_ready())
     temp_concat_path: Optional[str] = None
     try:
         if os.path.isdir(input_path):
             temp_concat_path = _concat_audio_files_in_dir(input_path)
-            result = _transcribe_audio(temp_concat_path)
+            result, speaker_embeddings = _transcribe_audio(
+                temp_concat_path, prev_embeddings
+            )
         else:
-            result = _transcribe_audio(input_path)
+            result, speaker_embeddings = _transcribe_audio(input_path, prev_embeddings)
         logging.info(f"Writing transcription to: {output_path}")
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(result, f, indent=2, ensure_ascii=False)
+        return result, speaker_embeddings
     finally:
         if temp_concat_path and os.path.exists(temp_concat_path):
             logging.info(f"Removing temporary concatenated file: {temp_concat_path}")

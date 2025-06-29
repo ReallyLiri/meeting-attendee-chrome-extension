@@ -11,12 +11,11 @@ from uuid import uuid4
 
 import aiofiles
 import uvicorn
-import logger as _
 from fastapi import FastAPI, UploadFile, File, Header, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from server.src import transcribe
+import transcribe
 
 warnings.filterwarnings(
     "ignore", message="resource_tracker: There appear to be .* leaked semaphore objects"
@@ -126,9 +125,9 @@ def start_session(req: SessionStartRequest) -> Dict[str, str]:
 
 @app.post("/sessions/{session_id}/chunk")
 async def upload_chunk(
-        session_id: str,
-        file: UploadFile = File(...),
-        mime_type: Optional[str] = Header(None),
+    session_id: str,
+    file: UploadFile = File(...),
+    mime_type: Optional[str] = Header(None),
 ) -> Dict[str, str]:
     mime_type = file.content_type
     logging.info(
@@ -155,7 +154,16 @@ async def upload_chunk(
     transcript_path: str = os.path.join(
         WORKING_DIR, f"transcript_{ts}_{session_id}.json"
     )
-    task = asyncio.create_task(transcribe_chunk_async(chunk_fpath, transcript_path))
+    prev_embeddings = sessions[session_id].get("speaker_embeddings")
+
+    def transcribe_with_embeddings_sync():
+        result, speaker_embeddings = transcribe.transcribe_and_write_json(
+            chunk_fpath, transcript_path, prev_embeddings
+        )
+        sessions[session_id]["speaker_embeddings"] = speaker_embeddings
+
+    loop = asyncio.get_event_loop()
+    task = loop.run_in_executor(None, transcribe_with_embeddings_sync)
     sessions[session_id]["transcript_files"].append(transcript_path)
     sessions[session_id]["transcription_tasks"].append(task)
     logging.info(
@@ -166,9 +174,9 @@ async def upload_chunk(
 
 @app.post("/sessions/{session_id}/screenshot")
 def upload_screenshot(
-        session_id: str,
-        file: UploadFile = File(...),
-        mime_type: Optional[str] = Header(None),
+    session_id: str,
+    file: UploadFile = File(...),
+    mime_type: Optional[str] = Header(None),
 ) -> Dict[str, str]:
     mime_type = file.content_type
     logging.info(
