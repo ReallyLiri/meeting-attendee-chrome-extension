@@ -325,6 +325,12 @@
                           tabId: targetTabId,
                         });
                       }
+                      if (thisTabId !== -1) {
+                        chrome.runtime.sendMessage({
+                          type: "STOP_RECORDING",
+                          tabId: thisTabId,
+                        });
+                      }
                       window.close();
                     };
                     mediaRecorder.start();
@@ -373,6 +379,12 @@
               chrome.runtime.sendMessage({
                 type: "STOP_RECORDING",
                 tabId: targetTabId,
+              });
+            }
+            if (thisTabId !== -1) {
+              chrome.runtime.sendMessage({
+                type: "STOP_RECORDING",
+                tabId: thisTabId,
               });
             }
             window.close();
