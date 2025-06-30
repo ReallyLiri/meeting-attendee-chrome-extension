@@ -75,7 +75,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const config = {
       captureScreenshots: captureScreenshotsCheckbox.checked,
       captureAudio: captureAudioCheckbox.checked,
-      screenshotIntervalSec: parseInt(intervalInput.value, 10),
+      screenshotIntervalSec: parseInt(intervalInput.value, 30),
       streamToServer: streamToServerCheckbox.checked,
       serverUrl: serverUrlInput.value,
     };
