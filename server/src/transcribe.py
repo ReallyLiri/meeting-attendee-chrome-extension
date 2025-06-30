@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import threading
 from typing import Optional
+import logger as _
 
 import torch
 import whisperx
