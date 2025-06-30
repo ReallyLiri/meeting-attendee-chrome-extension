@@ -40,7 +40,6 @@ document.addEventListener("DOMContentLoaded", () => {
         captureScreenshots?: boolean;
         captureAudio?: boolean;
         screenshotIntervalSec?: number;
-        audioBatchIntervalSec?: number;
         streamToServer?: boolean;
         serverUrl?: string;
       };
@@ -52,9 +51,6 @@ document.addEventListener("DOMContentLoaded", () => {
         intervalInput.value = (
           result.config.screenshotIntervalSec || 30
         ).toString();
-        audioBatchInput.value = (
-          result.config.audioBatchIntervalSec || 60
-        ).toString();
         streamToServerCheckbox.checked = result.config.streamToServer !== false;
         serverUrlInput.value =
           result.config.serverUrl || "http://localhost:8017";
@@ -62,7 +58,6 @@ document.addEventListener("DOMContentLoaded", () => {
         captureScreenshotsCheckbox.checked = true;
         captureAudioCheckbox.checked = true;
         intervalInput.value = "30";
-        audioBatchInput.value = "60";
         streamToServerCheckbox.checked = true;
         serverUrlInput.value = "http://localhost:8017";
       }
@@ -81,7 +76,6 @@ document.addEventListener("DOMContentLoaded", () => {
       captureScreenshots: captureScreenshotsCheckbox.checked,
       captureAudio: captureAudioCheckbox.checked,
       screenshotIntervalSec: parseInt(intervalInput.value, 10),
-      audioBatchIntervalSec: parseInt(audioBatchInput.value, 10),
       streamToServer: streamToServerCheckbox.checked,
       serverUrl: serverUrlInput.value,
     };

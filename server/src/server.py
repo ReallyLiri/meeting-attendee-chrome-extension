@@ -202,14 +202,16 @@ async def end_session(session_id: str, background_tasks: BackgroundTasks):
     async def finalize():
         chunk_dir = os.path.join(WORKING_DIR, session_id)
         logging.info(
-            f"Concatenating {len(session['chunks'])} audio chunks for session {session_id}"
+            f"Starting combination of {len(session['chunks'])} audio chunks for session {session_id}"
         )
         concat_path = os.path.join(chunk_dir, f"concat_{session_id}.webm")
         with open(concat_path, "wb") as outfile:
             for chunk_path in session["chunks"]:
                 with open(chunk_path, "rb") as infile:
                     outfile.write(infile.read())
-        logging.info(f"Combined audio written to {concat_path}")
+        logging.info(
+            f"Finished combination of audio chunks for session {session_id}, combined audio written to {concat_path}"
+        )
         # Transcribe the combined audio
         success = False
         try:

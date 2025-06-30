@@ -327,7 +327,7 @@
                       }
                       window.close();
                     };
-                    mediaRecorder.start(audioBatchIntervalSec * 1000);
+                    mediaRecorder.start();
                     console.log(
                       "MediaRecorder state after start:",
                       mediaRecorder.state,

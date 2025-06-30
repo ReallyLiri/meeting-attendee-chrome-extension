@@ -46,7 +46,6 @@ document.addEventListener("DOMContentLoaded", () => {
             captureScreenshots: true,
             captureAudio: true,
             screenshotIntervalSec: 30,
-            audioBatchIntervalSec: 60,
             streamToServer: true,
             serverUrl: "http://localhost:8017",
           },
@@ -56,7 +55,6 @@ document.addEventListener("DOMContentLoaded", () => {
             captureScreenshots?: boolean;
             captureAudio?: boolean;
             screenshotIntervalSec?: number;
-            audioBatchIntervalSec?: number;
             streamToServer?: boolean;
             serverUrl?: string;
           };
@@ -65,37 +63,40 @@ document.addEventListener("DOMContentLoaded", () => {
           chrome.storage.local.set(
             { activeRecording: { tabId: currentTabId, config } },
             () => {
-              const recorderUrl = chrome.runtime.getURL(
-                `recorder.html?tabId=${currentTabId}` +
-                  `&screenshotInterval=${config.screenshotIntervalSec}` +
-                  `&captureScreenshots=${config.captureScreenshots ? "1" : "0"}` +
-                  `&captureAudio=${config.captureAudio ? "1" : "0"}` +
-                  `&streamToServer=${config.streamToServer ? "1" : "0"}` +
-                  `&serverUrl=${encodeURIComponent(config.serverUrl || "http://localhost:8017")}`,
-              );
-              // Tell background to start recording and update badge
-              chrome.runtime.sendMessage(
-                { type: "START_RECORDING", tabId: currentTabId },
-                () => {
-                  chrome.tabs.create(
-                    {
-                      url: recorderUrl,
-                      active: false,
-                    },
-                    (tab: chrome.tabs.Tab) => {
-                      if (tab && tab.id) {
-                        // Register the recorder tab with the background script
-                        chrome.runtime.sendMessage({
-                          type: "REGISTER_RECORDER_TAB",
-                          recorderTabId: tab.id,
-                          targetTabId: currentTabId,
-                        });
-                      }
-                      updateButton();
-                    },
-                  );
-                },
-              );
+              chrome.tabs.get(currentTabId!, (targetTab) => {
+                const recorderUrl = chrome.runtime.getURL(
+                  `recorder.html?tabId=${currentTabId}` +
+                    `&screenshotInterval=${config.screenshotIntervalSec}` +
+                    `&captureScreenshots=${config.captureScreenshots ? "1" : "0"}` +
+                    `&captureAudio=${config.captureAudio ? "1" : "0"}` +
+                    `&streamToServer=${config.streamToServer ? "1" : "0"}` +
+                    `&serverUrl=${encodeURIComponent(config.serverUrl || "http://localhost:8017")}`,
+                );
+                // Tell background to start recording and update badge
+                chrome.runtime.sendMessage(
+                  { type: "START_RECORDING", tabId: currentTabId },
+                  () => {
+                    chrome.tabs.create(
+                      {
+                        url: recorderUrl,
+                        active: false,
+                        index: targetTab.index + 1,
+                      },
+                      (tab: chrome.tabs.Tab) => {
+                        if (tab && tab.id) {
+                          // Register the recorder tab with the background script
+                          chrome.runtime.sendMessage({
+                            type: "REGISTER_RECORDER_TAB",
+                            recorderTabId: tab.id,
+                            targetTabId: currentTabId,
+                          });
+                        }
+                        updateButton();
+                      },
+                    );
+                  },
+                );
+              });
             },
           );
         },
