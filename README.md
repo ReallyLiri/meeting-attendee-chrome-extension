@@ -1,10 +1,10 @@
 # Meeting Attendee Chrome Extension
 
-![logo](chrome-extension/public/attendee.png)
+<img src="chrome-extension/public/attendee.png" alt="logo" style="max-width: 300px;">
 
 A silent meeting attendee to listen on your behalf and summarize the meeting for you. Including transcription and screenshots.
 
-![options](https://i.imgur.com/sjcaKpK.png)
+<img src="https://i.imgur.com/sjcaKpK.png" alt="options" style="max-width: 300px;">
 
 ![action](https://i.imgur.com/Te24EaU.gif)
 
@@ -21,7 +21,7 @@ yarn build
 
 To install the extension, open Chrome and navigate to `chrome://extensions/`, enable "Developer mode", and load the unpacked extension from the `public` directory.
 
-![public dir](https://i.imgur.com/IozCst5.png)
+<img src="https://i.imgur.com/IozCst5.png" alt="public dir" style="max-width: 300px;">
 
 ## Server
 
