@@ -4,52 +4,54 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meeting Transcriptions</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="shortcut icon" href="/static/favicon.png">
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background-color: #f5f5f5;
             color: #333;
         }
-        
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
         }
-        
+
         h1 {
             text-align: center;
             margin-bottom: 30px;
             color: #2c3e50;
         }
-        
+
         .meetings-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
             gap: 20px;
             margin-bottom: 30px;
         }
-        
+
         .meeting-card {
             background: white;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             padding: 20px;
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
         }
-        
+
         .meeting-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
         }
-        
+
         .meeting-screenshot {
             width: 100%;
             height: 150px;
@@ -62,26 +64,26 @@
             color: #6c757d;
             font-size: 14px;
         }
-        
+
         .meeting-screenshot img {
             width: 100%;
             height: 100%;
             object-fit: cover;
             border-radius: 4px;
         }
-        
+
         .meeting-title {
             font-size: 18px;
             font-weight: 600;
             margin-bottom: 8px;
             color: #2c3e50;
         }
-        
+
         .meeting-date {
             font-size: 14px;
             color: #7f8c8d;
         }
-        
+
         .transcription-modal {
             display: none;
             position: fixed;
@@ -89,10 +91,10 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0,0,0,0.5);
+            background-color: rgba(0, 0, 0, 0.5);
             z-index: 1000;
         }
-        
+
         .modal-content {
             position: absolute;
             top: 50%;
@@ -106,7 +108,7 @@
             display: flex;
             flex-direction: column;
         }
-        
+
         .modal-header {
             padding: 20px;
             border-bottom: 1px solid #dee2e6;
@@ -114,13 +116,13 @@
             justify-content: space-between;
             align-items: center;
         }
-        
+
         .modal-title {
             font-size: 20px;
             font-weight: 600;
             color: #2c3e50;
         }
-        
+
         .close-btn {
             background: none;
             border: none;
@@ -128,11 +130,11 @@
             cursor: pointer;
             color: #6c757d;
         }
-        
+
         .close-btn:hover {
             color: #495057;
         }
-        
+
         .modal-body {
             flex: 1;
             padding: 20px;
@@ -141,7 +143,7 @@
             display: flex;
             gap: 20px;
         }
-        
+
         .screenshots-column {
             flex: 0 0 300px;
             border-right: 1px solid #dee2e6;
@@ -149,7 +151,7 @@
             display: flex;
             flex-direction: column;
         }
-        
+
         .screenshots-column h3 {
             margin-bottom: 15px;
             font-size: 16px;
@@ -157,19 +159,19 @@
             font-weight: 600;
             flex-shrink: 0;
         }
-        
+
         .screenshots-list {
             position: relative;
             flex: 1;
         }
-        
+
         .screenshot-item {
             position: absolute;
             width: 100%;
             display: flex;
             flex-direction: column;
         }
-        
+
         .screenshot-timestamp {
             font-size: 12px;
             color: #6c757d;
@@ -179,7 +181,7 @@
             position: relative;
             flex-shrink: 0;
         }
-        
+
         .screenshot-timestamp:hover::after {
             content: attr(data-full-timestamp);
             position: absolute;
@@ -194,46 +196,46 @@
             white-space: nowrap;
             z-index: 1000;
         }
-        
+
         .screenshot-image {
             width: 100%;
             object-fit: cover;
             border-radius: 4px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             cursor: pointer;
             transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
-        
+
         .screenshot-image:hover {
             transform: scale(1.02);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
-        
+
         .transcription-column {
             flex: 1;
             min-width: 0;
         }
-        
+
         .segment {
             margin-bottom: 15px;
             padding: 15px;
             border-radius: 4px;
             transition: background-color 0.2s ease;
         }
-        
+
         .segment-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 8px;
         }
-        
+
         .segment-left {
             display: flex;
             align-items: center;
             gap: 12px;
         }
-        
+
         .segment-timestamp {
             font-size: 12px;
             color: #6c757d;
@@ -241,7 +243,7 @@
             cursor: help;
             position: relative;
         }
-        
+
         .segment-timestamp:hover::after {
             content: attr(data-full-timestamp);
             position: absolute;
@@ -257,7 +259,7 @@
             z-index: 1000;
             margin-bottom: 5px;
         }
-        
+
         .segment-timestamp:hover::before {
             content: '';
             position: absolute;
@@ -268,7 +270,7 @@
             border-top-color: #333;
             margin-bottom: 1px;
         }
-        
+
         .segment-speaker {
             font-size: 12px;
             color: white;
@@ -277,41 +279,99 @@
             border-radius: 12px;
             white-space: nowrap;
         }
-        
-        .speaker-0 { background-color: #3498db; }
-        .speaker-1 { background-color: #e74c3c; }
-        .speaker-2 { background-color: #2ecc71; }
-        .speaker-3 { background-color: #f39c12; }
-        .speaker-4 { background-color: #9b59b6; }
-        .speaker-5 { background-color: #1abc9c; }
-        .speaker-6 { background-color: #34495e; }
-        .speaker-7 { background-color: #e67e22; }
-        .speaker-8 { background-color: #95a5a6; }
-        .speaker-9 { background-color: #8e44ad; }
-        
-        .segment-bg-0 { background-color: rgba(52, 152, 219, 0.15); }
-        .segment-bg-1 { background-color: rgba(231, 76, 60, 0.15); }
-        .segment-bg-2 { background-color: rgba(46, 204, 113, 0.15); }
-        .segment-bg-3 { background-color: rgba(243, 156, 18, 0.15); }
-        .segment-bg-4 { background-color: rgba(155, 89, 182, 0.15); }
-        .segment-bg-5 { background-color: rgba(26, 188, 156, 0.15); }
-        .segment-bg-6 { background-color: rgba(52, 73, 94, 0.15); }
-        .segment-bg-7 { background-color: rgba(230, 126, 34, 0.15); }
-        .segment-bg-8 { background-color: rgba(149, 165, 166, 0.15); }
-        .segment-bg-9 { background-color: rgba(142, 68, 173, 0.15); }
-        
+
+        .speaker-0 {
+            background-color: #3498db;
+        }
+
+        .speaker-1 {
+            background-color: #e74c3c;
+        }
+
+        .speaker-2 {
+            background-color: #2ecc71;
+        }
+
+        .speaker-3 {
+            background-color: #f39c12;
+        }
+
+        .speaker-4 {
+            background-color: #9b59b6;
+        }
+
+        .speaker-5 {
+            background-color: #1abc9c;
+        }
+
+        .speaker-6 {
+            background-color: #34495e;
+        }
+
+        .speaker-7 {
+            background-color: #e67e22;
+        }
+
+        .speaker-8 {
+            background-color: #95a5a6;
+        }
+
+        .speaker-9 {
+            background-color: #8e44ad;
+        }
+
+        .segment-bg-0 {
+            background-color: rgba(52, 152, 219, 0.15);
+        }
+
+        .segment-bg-1 {
+            background-color: rgba(231, 76, 60, 0.15);
+        }
+
+        .segment-bg-2 {
+            background-color: rgba(46, 204, 113, 0.15);
+        }
+
+        .segment-bg-3 {
+            background-color: rgba(243, 156, 18, 0.15);
+        }
+
+        .segment-bg-4 {
+            background-color: rgba(155, 89, 182, 0.15);
+        }
+
+        .segment-bg-5 {
+            background-color: rgba(26, 188, 156, 0.15);
+        }
+
+        .segment-bg-6 {
+            background-color: rgba(52, 73, 94, 0.15);
+        }
+
+        .segment-bg-7 {
+            background-color: rgba(230, 126, 34, 0.15);
+        }
+
+        .segment-bg-8 {
+            background-color: rgba(149, 165, 166, 0.15);
+        }
+
+        .segment-bg-9 {
+            background-color: rgba(142, 68, 173, 0.15);
+        }
+
         .segment-text {
             font-size: 14px;
             line-height: 1.5;
             color: #333;
         }
-        
+
         .loading {
             text-align: center;
             padding: 40px;
             color: #6c757d;
         }
-        
+
         .error {
             text-align: center;
             padding: 40px;
@@ -320,150 +380,150 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Meeting Transcriptions</h1>
-        <div id="meetings-container" class="meetings-grid">
-            <div class="loading">Loading meetings...</div>
+<div class="container">
+    <h1>Meeting Transcriptions</h1>
+    <div id="meetings-container" class="meetings-grid">
+        <div class="loading">Loading meetings...</div>
+    </div>
+</div>
+
+<div id="transcription-modal" class="transcription-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modal-title" class="modal-title"></h2>
+            <button class="close-btn" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="modal-body">
+            <div class="loading">Loading transcription...</div>
         </div>
     </div>
+</div>
 
-    <div id="transcription-modal" class="transcription-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modal-title" class="modal-title"></h2>
-                <button class="close-btn" onclick="closeModal()">&times;</button>
-            </div>
-            <div class="modal-body" id="modal-body">
-                <div class="loading">Loading transcription...</div>
-            </div>
-        </div>
-    </div>
+<script>
+    let meetings = [];
 
-    <script>
-        let meetings = [];
+    function formatTimestamp(epochSeconds) {
+        const date = new Date(epochSeconds * 1000);
+        return date.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+    }
 
-        function formatTimestamp(epochSeconds) {
-            const date = new Date(epochSeconds * 1000);
-            return date.toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            });
+    function formatSpeaker(speakerId) {
+        if (!speakerId) return 'Unknown';
+
+        const match = speakerId.match(/SPEAKER_(\d+)/);
+        if (match) {
+            const speakerNum = parseInt(match[1]) + 1;
+            return `Speaker #${speakerNum}`;
+        }
+        return speakerId;
+    }
+
+    function getSpeakerClass(speakerId) {
+        if (!speakerId) return 'speaker-0';
+
+        const match = speakerId.match(/SPEAKER_(\d+)/);
+        if (match) {
+            const speakerNum = parseInt(match[1]) % 10;
+            return `speaker-${speakerNum}`;
+        }
+        return 'speaker-0';
+    }
+
+    function getSegmentBgClass(speakerId) {
+        if (!speakerId) return 'segment-bg-0';
+
+        const match = speakerId.match(/SPEAKER_(\d+)/);
+        if (match) {
+            const speakerNum = parseInt(match[1]) % 10;
+            return `segment-bg-${speakerNum}`;
+        }
+        return 'segment-bg-0';
+    }
+
+    function formatFullTimestamp(epochSeconds) {
+        const date = new Date(epochSeconds * 1000);
+        return date.toISOString();
+    }
+
+    function formatDate(timestamp) {
+        const date = new Date(timestamp * 1000);
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    async function loadMeetings() {
+        try {
+            const response = await fetch('/api/meetings');
+            const data = await response.json();
+            meetings = data.meetings || [];
+            renderMeetings();
+        } catch (error) {
+            console.error('Error loading meetings:', error);
+            document.getElementById('meetings-container').innerHTML =
+                '<div class="error">Error loading meetings</div>';
+        }
+    }
+
+    function renderMeetings() {
+        const container = document.getElementById('meetings-container');
+
+        if (meetings.length === 0) {
+            container.innerHTML = '<div class="error">No meetings found</div>';
+            return;
         }
 
-        function formatSpeaker(speakerId) {
-            if (!speakerId) return 'Unknown';
-            
-            const match = speakerId.match(/SPEAKER_(\d+)/);
-            if (match) {
-                const speakerNum = parseInt(match[1]) + 1;
-                return `Speaker #${speakerNum}`;
-            }
-            return speakerId;
-        }
-
-        function getSpeakerClass(speakerId) {
-            if (!speakerId) return 'speaker-0';
-            
-            const match = speakerId.match(/SPEAKER_(\d+)/);
-            if (match) {
-                const speakerNum = parseInt(match[1]) % 10;
-                return `speaker-${speakerNum}`;
-            }
-            return 'speaker-0';
-        }
-
-        function getSegmentBgClass(speakerId) {
-            if (!speakerId) return 'segment-bg-0';
-            
-            const match = speakerId.match(/SPEAKER_(\d+)/);
-            if (match) {
-                const speakerNum = parseInt(match[1]) % 10;
-                return `segment-bg-${speakerNum}`;
-            }
-            return 'segment-bg-0';
-        }
-
-        function formatFullTimestamp(epochSeconds) {
-            const date = new Date(epochSeconds * 1000);
-            return date.toISOString();
-        }
-
-        function formatDate(timestamp) {
-            const date = new Date(timestamp * 1000);
-            return date.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        }
-
-        async function loadMeetings() {
-            try {
-                const response = await fetch('/api/meetings');
-                const data = await response.json();
-                meetings = data.meetings || [];
-                renderMeetings();
-            } catch (error) {
-                console.error('Error loading meetings:', error);
-                document.getElementById('meetings-container').innerHTML = 
-                    '<div class="error">Error loading meetings</div>';
-            }
-        }
-
-        function renderMeetings() {
-            const container = document.getElementById('meetings-container');
-            
-            if (meetings.length === 0) {
-                container.innerHTML = '<div class="error">No meetings found</div>';
-                return;
-            }
-
-            container.innerHTML = meetings.map(meeting => `
+        container.innerHTML = meetings.map(meeting => `
                 <div class="meeting-card" onclick="showTranscription('${meeting.id}')">
                     <div class="meeting-screenshot">
-                        ${meeting.screenshot ? 
-                            `<img src="/api/meetings/${meeting.id}/screenshot" alt="Meeting screenshot">` : 
-                            'No screenshot available'
-                        }
+                        ${meeting.screenshot ?
+            `<img src="/api/meetings/${meeting.id}/screenshot" alt="Meeting screenshot">` :
+            'No screenshot available'
+        }
                     </div>
                     <div class="meeting-title">${meeting.title}</div>
                     <div class="meeting-date">${formatDate(meeting.date)}</div>
                 </div>
             `).join('');
-        }
+    }
 
-        async function showTranscription(meetingId) {
-            const modal = document.getElementById('transcription-modal');
-            const modalTitle = document.getElementById('modal-title');
-            const modalBody = document.getElementById('modal-body');
-            
-            const meeting = meetings.find(m => m.id === meetingId);
-            if (!meeting) return;
+    async function showTranscription(meetingId) {
+        const modal = document.getElementById('transcription-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
 
-            modalTitle.textContent = meeting.title;
-            modalBody.innerHTML = '<div class="loading">Loading transcription...</div>';
-            modal.style.display = 'block';
+        const meeting = meetings.find(m => m.id === meetingId);
+        if (!meeting) return;
 
-            try {
-                // Fetch both transcription and screenshots
-                const [transcriptionResponse, screenshotsResponse] = await Promise.all([
-                    fetch(`/api/meetings/${meetingId}/transcription`),
-                    fetch(`/api/meetings/${meetingId}/screenshots`)
-                ]);
-                
-                const transcriptionData = await transcriptionResponse.json();
-                const screenshotsData = await screenshotsResponse.json();
-                
-                if (transcriptionData.segments && transcriptionData.segments.length > 0) {
-                    const startTime = transcriptionData.session?.start_time || 0;
-                    
-                    // Create screenshots HTML
-                    const screenshotsHtml = screenshotsData.screenshots && screenshotsData.screenshots.length > 0 
-                        ? `<div class="screenshots-list">
+        modalTitle.textContent = meeting.title;
+        modalBody.innerHTML = '<div class="loading">Loading transcription...</div>';
+        modal.style.display = 'block';
+
+        try {
+            // Fetch both transcription and screenshots
+            const [transcriptionResponse, screenshotsResponse] = await Promise.all([
+                fetch(`/api/meetings/${meetingId}/transcription`),
+                fetch(`/api/meetings/${meetingId}/screenshots`)
+            ]);
+
+            const transcriptionData = await transcriptionResponse.json();
+            const screenshotsData = await screenshotsResponse.json();
+
+            if (transcriptionData.segments && transcriptionData.segments.length > 0) {
+                const startTime = transcriptionData.session?.start_time || 0;
+
+                // Create screenshots HTML
+                const screenshotsHtml = screenshotsData.screenshots && screenshotsData.screenshots.length > 0
+                    ? `<div class="screenshots-list">
                             ${screenshotsData.screenshots.map(screenshot => `
                                 <div class="screenshot-item">
                                     <div class="screenshot-timestamp" data-full-timestamp="${formatFullTimestamp(screenshot.timestamp)}">${formatTimestamp(screenshot.timestamp)}</div>
@@ -475,13 +535,13 @@
                                 </div>
                             `).join('')}
                            </div>`
-                        : '<div class="error">No screenshots found</div>';
-                    
-                    // Create transcription HTML
-                    const transcriptionHtml = transcriptionData.segments.map(segment => {
-                        const segmentTimestamp = startTime + segment.start;
-                        const formattedText = segment.text.replace(/\n/g, '<br>');
-                        return `
+                    : '<div class="error">No screenshots found</div>';
+
+                // Create transcription HTML
+                const transcriptionHtml = transcriptionData.segments.map(segment => {
+                    const segmentTimestamp = startTime + segment.start;
+                    const formattedText = segment.text.replace(/\n/g, '<br>');
+                    return `
                             <div class="segment ${getSegmentBgClass(segment.speaker)}">
                                 <div class="segment-header">
                                     <div class="segment-left">
@@ -492,9 +552,9 @@
                                 <div class="segment-text">${formattedText}</div>
                             </div>
                         `;
-                    }).join('');
-                    
-                    modalBody.innerHTML = `
+                }).join('');
+
+                modalBody.innerHTML = `
                         <div class="screenshots-column">
                             ${screenshotsHtml}
                         </div>
@@ -502,66 +562,66 @@
                             ${transcriptionHtml}
                         </div>
                     `;
-                    
-                    // After rendering, position screenshots to span the full height
-                    setTimeout(() => {
-                        const transcriptionColumn = modalBody.querySelector('.transcription-column');
-                        const screenshotsList = modalBody.querySelector('.screenshots-list');
-                        const screenshotItems = modalBody.querySelectorAll('.screenshot-item');
-                        
-                        if (transcriptionColumn && screenshotsList && screenshotItems.length > 0) {
-                            const transcriptionHeight = transcriptionColumn.scrollHeight - 20;
-                            screenshotsList.style.height = `${transcriptionHeight}px`;
-                            
-                            // Calculate positions for each screenshot
-                            const screenshotHeight = 150; // Fixed height for each screenshot
-                            const timestampHeight = 20; // Height for timestamp
-                            const totalItemHeight = screenshotHeight + timestampHeight;
-                            
-                            screenshotItems.forEach((item, index) => {
-                                if (screenshotItems.length === 1) {
-                                    // Single screenshot - center it
-                                    item.style.top = `${(transcriptionHeight - totalItemHeight) / 2}px`;
-                                } else {
-                                    // Multiple screenshots - distribute evenly
-                                    const availableHeight = transcriptionHeight - totalItemHeight;
-                                    const spacing = availableHeight / (screenshotItems.length - 1);
-                                    item.style.top = `${index * spacing}px`;
-                                }
-                                
-                                // Set fixed height for the screenshot image
-                                const img = item.querySelector('.screenshot-image');
-                                if (img) {
-                                    img.style.height = `${screenshotHeight}px`;
-                                }
-                            });
-                        }
-                    }, 100);
-                } else {
-                    modalBody.innerHTML = '<div class="error">No transcription segments found</div>';
-                }
-            } catch (error) {
-                console.error('Error loading transcription:', error);
-                modalBody.innerHTML = '<div class="error">Error loading transcription</div>';
+
+                // After rendering, position screenshots to span the full height
+                setTimeout(() => {
+                    const transcriptionColumn = modalBody.querySelector('.transcription-column');
+                    const screenshotsList = modalBody.querySelector('.screenshots-list');
+                    const screenshotItems = modalBody.querySelectorAll('.screenshot-item');
+
+                    if (transcriptionColumn && screenshotsList && screenshotItems.length > 0) {
+                        const transcriptionHeight = transcriptionColumn.scrollHeight - 20;
+                        screenshotsList.style.height = `${transcriptionHeight}px`;
+
+                        // Calculate positions for each screenshot
+                        const screenshotHeight = 150; // Fixed height for each screenshot
+                        const timestampHeight = 20; // Height for timestamp
+                        const totalItemHeight = screenshotHeight + timestampHeight;
+
+                        screenshotItems.forEach((item, index) => {
+                            if (screenshotItems.length === 1) {
+                                // Single screenshot - center it
+                                item.style.top = `${(transcriptionHeight - totalItemHeight) / 2}px`;
+                            } else {
+                                // Multiple screenshots - distribute evenly
+                                const availableHeight = transcriptionHeight - totalItemHeight;
+                                const spacing = availableHeight / (screenshotItems.length - 1);
+                                item.style.top = `${index * spacing}px`;
+                            }
+
+                            // Set fixed height for the screenshot image
+                            const img = item.querySelector('.screenshot-image');
+                            if (img) {
+                                img.style.height = `${screenshotHeight}px`;
+                            }
+                        });
+                    }
+                }, 100);
+            } else {
+                modalBody.innerHTML = '<div class="error">No transcription segments found</div>';
             }
+        } catch (error) {
+            console.error('Error loading transcription:', error);
+            modalBody.innerHTML = '<div class="error">Error loading transcription</div>';
         }
+    }
 
-        function closeModal() {
-            document.getElementById('transcription-modal').style.display = 'none';
+    function closeModal() {
+        document.getElementById('transcription-modal').style.display = 'none';
+    }
+
+    function openScreenshotInNewTab(imageUrl) {
+        window.open(imageUrl, '_blank');
+    }
+
+    window.onclick = function (event) {
+        const modal = document.getElementById('transcription-modal');
+        if (event.target === modal) {
+            closeModal();
         }
+    }
 
-        function openScreenshotInNewTab(imageUrl) {
-            window.open(imageUrl, '_blank');
-        }
-
-        window.onclick = function(event) {
-            const modal = document.getElementById('transcription-modal');
-            if (event.target === modal) {
-                closeModal();
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', loadMeetings);
-    </script>
+    document.addEventListener('DOMContentLoaded', loadMeetings);
+</script>
 </body>
 </html>
