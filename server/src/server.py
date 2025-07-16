@@ -362,8 +362,7 @@ def upload_screenshot(
         raise HTTPException(status_code=404, detail="Session not found")
     ext: str = _get_ext_from_mime(mime_type_simple)
     ts: str = _timestamp_str()
-    norm_title: str = sessions[session_id]["norm_title"]
-    session_dir: str = os.path.join(OUTPUT_DIR, norm_title)
+    session_dir: str = os.path.join(OUTPUT_DIR, session_id)
     os.makedirs(session_dir, exist_ok=True)
     fname: str = f"screenshot_{ts}.{ext}"
     fpath: str = os.path.join(session_dir, fname)
@@ -380,8 +379,7 @@ async def end_session(session_id: str, background_tasks: BackgroundTasks):
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
     session = sessions[session_id]
-    norm_title = session["norm_title"]
-    session_dir = os.path.join(OUTPUT_DIR, norm_title)
+    session_dir = os.path.join(OUTPUT_DIR, session_id)
     os.makedirs(session_dir, exist_ok=True)
     out_path = os.path.join(session_dir, "transcription.json")
 
