@@ -2,7 +2,11 @@
 
 <img src="chrome-extension/public/attendee.png" alt="logo" width="420">
 
-A silent meeting attendee to listen on your behalf and summarize the meeting for you. Including transcription and screenshots.
+A silent meeting attendee to listen on your behalf and summarize the meeting for you.
+
+The attendee will "hijack" the meeting audio. When running only the extension, you will get an audio file (`.webm`) and screenshot files (`.png`). 
+ 
+If running also the server, you will get, along the screenshots, a transcription of the meeting and speaker diarization, which you could then pass to your favorite LLM to summarize the meeting.
 
 <img src="https://i.imgur.com/sjcaKpK.png" alt="options" width="600">
 
