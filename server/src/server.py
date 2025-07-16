@@ -114,6 +114,7 @@ def start_session(req: SessionStartRequest) -> Dict[str, str]:
     sessions[session_id] = {
         "title": req.title,
         "norm_title": norm_title,
+        "start_time": datetime.now().timestamp(),
         "chunks": [],
         "screenshots": [],
         "transcript_files": [],
@@ -127,7 +128,6 @@ def start_session(req: SessionStartRequest) -> Dict[str, str]:
 async def upload_chunk(
     session_id: str,
     file: UploadFile = File(...),
-    mime_type: Optional[str] = Header(None),
 ) -> Dict[str, str]:
     mime_type = file.content_type
     logging.info(
@@ -161,7 +161,6 @@ async def upload_chunk(
 def upload_screenshot(
     session_id: str,
     file: UploadFile = File(...),
-    mime_type: Optional[str] = Header(None),
 ) -> Dict[str, str]:
     mime_type = file.content_type
     logging.info(
@@ -212,16 +211,16 @@ async def end_session(session_id: str, background_tasks: BackgroundTasks):
         logging.info(
             f"Finished combination of audio chunks for session {session_id}, combined audio written to {concat_path}"
         )
-        # Transcribe the combined audio
+
         success = False
         try:
             logging.info(f"Starting transcription for {concat_path} -> {out_path}")
-            result = await transcribe.transcribe_and_write_json(concat_path, out_path)
+            await transcribe.transcribe_and_write_json(session, concat_path, out_path)
             logging.info(f"Finished transcription for {concat_path} -> {out_path}")
             success = True
         except Exception as e:
             logging.error(f"Transcription failed for {concat_path}: {e}", exc_info=True)
-        # Clean up only if successful
+
         if success:
             import shutil
 

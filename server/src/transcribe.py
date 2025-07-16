@@ -111,7 +111,7 @@ def _concat_audio_files_in_dir(directory: str) -> str:
     if not files:
         raise ValueError(f"No files found in directory: {directory}")
     with tempfile.NamedTemporaryFile(
-        mode="w", delete=False, suffix=".txt"
+            mode="w", delete=False, suffix=".txt"
     ) as list_file:
         for f in files:
             list_file.write(f"file '{f}'\n")
@@ -147,7 +147,9 @@ def _get_output_json_path(audio_path: str) -> str:
 
 
 async def transcribe_and_write_json(
-    input_path: str, output_path: str, prev_embeddings=None
+        session: dict,
+        input_path: str,
+        output_path: str,
 ):
     await ensure_model_ready()
     temp_concat_path: Optional[str] = None
@@ -158,6 +160,7 @@ async def transcribe_and_write_json(
         else:
             result = _transcribe_audio(input_path)
         logging.info(f"Writing transcription to: {output_path}")
+        result["session"] = session
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(result, f, indent=2, ensure_ascii=False)
         return result
@@ -176,4 +179,4 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     output_path = _get_output_json_path(args.audio_path)
-    transcribe_and_write_json(args.audio_path, output_path)
+    transcribe_and_write_json({}, args.audio_path, output_path)
