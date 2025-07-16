@@ -429,4 +429,4 @@ async def end_session(session_id: str, background_tasks: BackgroundTasks):
 
 if __name__ == "__main__":
     logging.info(f"Starting FastAPI server on port {PORT}")
-    uvicorn.run("server:app", host="0.0.0.0", port=PORT, reload=True)
+    uvicorn.run("server:app", host="0.0.0.0", port=PORT, reload=not os.getenv("PROD", False))

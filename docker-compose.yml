@@ -1,0 +1,11 @@
+services:
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: meeting-attendee-server
+    restart: unless-stopped
+    ports:
+      - "8017:8017"
+    env_file:
+      - ./server/.env
