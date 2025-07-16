@@ -1,5 +1,7 @@
 ## Transcription server
 
+Run from `server` directory.
+
 ```
 uv run --env-file=.env src/server.py
 ```

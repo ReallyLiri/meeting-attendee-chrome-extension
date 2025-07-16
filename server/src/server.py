@@ -13,6 +13,8 @@ import aiofiles
 import uvicorn
 from fastapi import FastAPI, UploadFile, File, Header, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import transcribe
@@ -48,6 +50,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 def _normalize_title(title: str) -> str:
     return "".join(
@@ -78,6 +82,191 @@ def _get_ext_from_mime(mime: str) -> str:
 
 class SessionStartRequest(BaseModel):
     title: str
+
+
+@app.get("/", response_class=HTMLResponse)
+@app.get("/index.html", response_class=HTMLResponse)
+async def serve_index():
+    return FileResponse("static/index.html")
+
+
+@app.get("/api/meetings")
+async def get_meetings():
+    meetings = []
+    
+    if not os.path.exists(OUTPUT_DIR):
+        return {"meetings": meetings}
+    
+    for meeting_dir in os.listdir(OUTPUT_DIR):
+        meeting_path = os.path.join(OUTPUT_DIR, meeting_dir)
+        if not os.path.isdir(meeting_path):
+            continue
+            
+        transcription_path = os.path.join(meeting_path, "transcription.json")
+        if not os.path.exists(transcription_path):
+            continue
+            
+        try:
+            async with aiofiles.open(transcription_path, "r", encoding="utf-8") as f:
+                transcription_data = json.loads(await f.read())
+                
+            session = transcription_data.get("session", {})
+            title = session.get("title", meeting_dir)
+            start_time = session.get("start_time", 0)
+            
+            screenshots = []
+            for file in os.listdir(meeting_path):
+                if file.startswith("screenshot_") and file.endswith(".png"):
+                    screenshots.append(file)
+            
+            screenshots.sort()
+            middle_screenshot = None
+            if screenshots:
+                middle_index = len(screenshots) // 2
+                middle_screenshot = screenshots[middle_index]
+            
+            meetings.append({
+                "id": meeting_dir,
+                "title": title,
+                "date": start_time,
+                "screenshot": middle_screenshot
+            })
+        except Exception as e:
+            logging.error(f"Error processing meeting {meeting_dir}: {e}")
+            continue
+    
+    meetings.sort(key=lambda x: x["date"], reverse=True)
+    return {"meetings": meetings}
+
+
+@app.get("/api/meetings/{meeting_id}/transcription")
+async def get_transcription(meeting_id: str):
+    meeting_path = os.path.join(OUTPUT_DIR, meeting_id)
+    transcription_path = os.path.join(meeting_path, "transcription.json")
+    
+    if not os.path.exists(transcription_path):
+        raise HTTPException(status_code=404, detail="Transcription not found")
+    
+    try:
+        async with aiofiles.open(transcription_path, "r", encoding="utf-8") as f:
+            transcription_data = json.loads(await f.read())
+        
+        # Merge consecutive segments from the same speaker
+        if "segments" in transcription_data and transcription_data["segments"]:
+            merged_segments = []
+            current_segment = None
+            
+            for segment in transcription_data["segments"]:
+                if current_segment is None:
+                    current_segment = segment.copy()
+                elif current_segment["speaker"] == segment["speaker"]:
+                    # Merge with current segment
+                    current_segment["end"] = segment["end"]
+                    current_segment["text"] += "\n" + segment["text"]
+                else:
+                    # Different speaker, save current and start new
+                    merged_segments.append(current_segment)
+                    current_segment = segment.copy()
+            
+            # Don't forget the last segment
+            if current_segment is not None:
+                merged_segments.append(current_segment)
+            
+            transcription_data["segments"] = merged_segments
+        
+        return transcription_data
+    except Exception as e:
+        logging.error(f"Error reading transcription for {meeting_id}: {e}")
+        raise HTTPException(status_code=500, detail="Error reading transcription")
+
+
+@app.get("/api/meetings/{meeting_id}/screenshot")
+async def get_screenshot(meeting_id: str):
+    meeting_path = os.path.join(OUTPUT_DIR, meeting_id)
+    
+    if not os.path.exists(meeting_path):
+        raise HTTPException(status_code=404, detail="Meeting not found")
+    
+    screenshots = []
+    for file in os.listdir(meeting_path):
+        if file.startswith("screenshot_") and file.endswith(".png"):
+            screenshots.append(file)
+    
+    if not screenshots:
+        raise HTTPException(status_code=404, detail="No screenshots found")
+    
+    screenshots.sort()
+    middle_index = len(screenshots) // 2
+    screenshot_path = os.path.join(meeting_path, screenshots[middle_index])
+    
+    return FileResponse(screenshot_path, media_type="image/png")
+
+
+@app.get("/api/meetings/{meeting_id}/screenshots")
+async def get_screenshots_list(meeting_id: str):
+    meeting_path = os.path.join(OUTPUT_DIR, meeting_id)
+    
+    if not os.path.exists(meeting_path):
+        raise HTTPException(status_code=404, detail="Meeting not found")
+    
+    transcription_path = os.path.join(meeting_path, "transcription.json")
+    if not os.path.exists(transcription_path):
+        raise HTTPException(status_code=404, detail="Transcription not found")
+    
+    try:
+        async with aiofiles.open(transcription_path, "r", encoding="utf-8") as f:
+            transcription_data = json.loads(await f.read())
+        
+        session = transcription_data.get("session", {})
+        start_time = session.get("start_time", 0)
+        
+        screenshots = []
+        for file in os.listdir(meeting_path):
+            if file.startswith("screenshot_") and file.endswith(".png"):
+                # Parse timestamp from filename like "screenshot_2025.07.16.12.15.png"
+                timestamp_str = file.replace("screenshot_", "").replace(".png", "")
+                try:
+                    # Convert timestamp format 2025.07.16.12.15 to datetime
+                    parts = timestamp_str.split(".")
+                    if len(parts) >= 5:
+                        year, month, day, hour, minute = map(int, parts[:5])
+                        from datetime import datetime
+                        screenshot_time = datetime(year, month, day, hour, minute)
+                        screenshot_epoch = screenshot_time.timestamp()
+                        
+                        screenshots.append({
+                            "filename": file,
+                            "timestamp": screenshot_epoch,
+                            "relative_time": screenshot_epoch - start_time
+                        })
+                except (ValueError, IndexError):
+                    # If parsing fails, use file modification time as fallback
+                    file_path = os.path.join(meeting_path, file)
+                    file_mtime = os.path.getmtime(file_path)
+                    screenshots.append({
+                        "filename": file,
+                        "timestamp": file_mtime,
+                        "relative_time": file_mtime - start_time
+                    })
+        
+        # Sort by timestamp
+        screenshots.sort(key=lambda x: x["timestamp"])
+        
+        return {"screenshots": screenshots}
+    except Exception as e:
+        logging.error(f"Error reading screenshots for {meeting_id}: {e}")
+        raise HTTPException(status_code=500, detail="Error reading screenshots")
+
+
+@app.get("/api/meetings/{meeting_id}/screenshots/{filename}")
+async def get_screenshot_file(meeting_id: str, filename: str):
+    meeting_path = os.path.join(OUTPUT_DIR, meeting_id)
+    screenshot_path = os.path.join(meeting_path, filename)
+    
+    if not os.path.exists(screenshot_path) or not filename.startswith("screenshot_"):
+        raise HTTPException(status_code=404, detail="Screenshot not found")
+    
+    return FileResponse(screenshot_path, media_type="image/png")
 
 
 async def transcribe_chunk_async(audio_path: str, output_path: str) -> None:
@@ -117,8 +306,6 @@ def start_session(req: SessionStartRequest) -> Dict[str, str]:
         "start_time": datetime.now().timestamp(),
         "chunks": [],
         "screenshots": [],
-        "transcript_files": [],
-        "transcription_tasks": [],
     }
     logging.info(f"Started session {session_id} with title '{req.title}'")
     return {"session_id": session_id}
