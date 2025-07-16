@@ -151,6 +151,11 @@ chrome.tabs.onRemoved.addListener(
       );
       recordingTabs[targetTabId] = false;
       updateBadge(targetTabId, false);
+      if (debuggerAttachedTabs[targetTabId]) {
+        chrome.debugger.detach({ tabId: targetTabId }, () => {
+          debuggerAttachedTabs[targetTabId] = false;
+        });
+      }
       delete recorderTabToTargetTab[tabId];
     }
   },
