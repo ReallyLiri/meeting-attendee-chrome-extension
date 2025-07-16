@@ -19,11 +19,12 @@ If running also the server, you will get, along the screenshots, a transcription
 To build the Chrome extension, run:
 
 ```shell
+cd chrome-extension
 yarn
 yarn build
 ```
 
-To install the extension, open Chrome and navigate to `chrome://extensions/`, enable "Developer mode", and load the unpacked extension from the `public` directory.
+To install the extension, open Chrome and navigate to `chrome://extensions/`, enable "Developer mode", and load the unpacked extension from the `chrome-extension/public` directory.
 
 <img src="https://i.imgur.com/IozCst5.png" alt="public dir" width="600">
 
