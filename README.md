@@ -25,15 +25,9 @@ To install the extension, open Chrome and navigate to `chrome://extensions/`, en
 
 ## Server
 
-Create a `.env` file in the `server` directory with the following content:
+You will need a Hugging Face token to run the server. You can get one by creating an account on [Hugging Face](https://huggingface.co/) and generating a token in your account settings. You don't need to pay anything, you just need to create an account and accept the terms of these models: [pyannote/segmentation-3.0](https://huggingface.co/pyannote/segmentation-3.0), [pyannote/speaker-diarization-3.1](https://huggingface.co/pyannote/speaker-diarization-3.1).
 
-```env
-HF_TOKEN=<your_huggingface_token>
-MODEL_DIR=model
-WORKING_DIR=./data
-OUTPUT_DIR=./output
-PORT=8017
-``` 
+Copy `.env.template` to `.env` in the `server` directory and adjust as needed, including the Hugging Face token you obtained earlier.
 
 ### Transcription server
 
