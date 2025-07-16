@@ -146,6 +146,8 @@
             flex: 0 0 300px;
             border-right: 1px solid #dee2e6;
             padding-right: 20px;
+            display: flex;
+            flex-direction: column;
         }
         
         .screenshots-column h3 {
@@ -153,10 +155,19 @@
             font-size: 16px;
             color: #495057;
             font-weight: 600;
+            flex-shrink: 0;
+        }
+        
+        .screenshots-list {
+            position: relative;
+            flex: 1;
         }
         
         .screenshot-item {
-            margin-bottom: 20px;
+            position: absolute;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
         }
         
         .screenshot-timestamp {
@@ -166,6 +177,7 @@
             margin-bottom: 5px;
             cursor: help;
             position: relative;
+            flex-shrink: 0;
         }
         
         .screenshot-timestamp:hover::after {
@@ -185,9 +197,16 @@
         
         .screenshot-image {
             width: 100%;
-            height: auto;
+            object-fit: cover;
             border-radius: 4px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .screenshot-image:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
         
         .transcription-column {
@@ -444,14 +463,18 @@
                     
                     // Create screenshots HTML
                     const screenshotsHtml = screenshotsData.screenshots && screenshotsData.screenshots.length > 0 
-                        ? screenshotsData.screenshots.map(screenshot => `
-                            <div class="screenshot-item">
-                                <div class="screenshot-timestamp" data-full-timestamp="${formatFullTimestamp(screenshot.timestamp)}">${formatTimestamp(screenshot.timestamp)}</div>
-                                <img src="/api/meetings/${meetingId}/screenshots/${screenshot.filename}" 
-                                     alt="Screenshot" 
-                                     class="screenshot-image">
-                            </div>
-                        `).join('')
+                        ? `<div class="screenshots-list">
+                            ${screenshotsData.screenshots.map(screenshot => `
+                                <div class="screenshot-item">
+                                    <div class="screenshot-timestamp" data-full-timestamp="${formatFullTimestamp(screenshot.timestamp)}">${formatTimestamp(screenshot.timestamp)}</div>
+                                    <img src="/api/meetings/${meetingId}/screenshots/${screenshot.filename}" 
+                                         alt="Screenshot" 
+                                         class="screenshot-image"
+                                         onclick="openScreenshotInNewTab('/api/meetings/${meetingId}/screenshots/${screenshot.filename}')"
+                                         title="Click to open in new tab">
+                                </div>
+                            `).join('')}
+                           </div>`
                         : '<div class="error">No screenshots found</div>';
                     
                     // Create transcription HTML
@@ -473,13 +496,47 @@
                     
                     modalBody.innerHTML = `
                         <div class="screenshots-column">
-                            <h3>Screenshots</h3>
                             ${screenshotsHtml}
                         </div>
                         <div class="transcription-column">
                             ${transcriptionHtml}
                         </div>
                     `;
+                    
+                    // After rendering, position screenshots to span the full height
+                    setTimeout(() => {
+                        const transcriptionColumn = modalBody.querySelector('.transcription-column');
+                        const screenshotsList = modalBody.querySelector('.screenshots-list');
+                        const screenshotItems = modalBody.querySelectorAll('.screenshot-item');
+                        
+                        if (transcriptionColumn && screenshotsList && screenshotItems.length > 0) {
+                            const transcriptionHeight = transcriptionColumn.scrollHeight - 20;
+                            screenshotsList.style.height = `${transcriptionHeight}px`;
+                            
+                            // Calculate positions for each screenshot
+                            const screenshotHeight = 150; // Fixed height for each screenshot
+                            const timestampHeight = 20; // Height for timestamp
+                            const totalItemHeight = screenshotHeight + timestampHeight;
+                            
+                            screenshotItems.forEach((item, index) => {
+                                if (screenshotItems.length === 1) {
+                                    // Single screenshot - center it
+                                    item.style.top = `${(transcriptionHeight - totalItemHeight) / 2}px`;
+                                } else {
+                                    // Multiple screenshots - distribute evenly
+                                    const availableHeight = transcriptionHeight - totalItemHeight;
+                                    const spacing = availableHeight / (screenshotItems.length - 1);
+                                    item.style.top = `${index * spacing}px`;
+                                }
+                                
+                                // Set fixed height for the screenshot image
+                                const img = item.querySelector('.screenshot-image');
+                                if (img) {
+                                    img.style.height = `${screenshotHeight}px`;
+                                }
+                            });
+                        }
+                    }, 100);
                 } else {
                     modalBody.innerHTML = '<div class="error">No transcription segments found</div>';
                 }
@@ -491,6 +548,10 @@
 
         function closeModal() {
             document.getElementById('transcription-modal').style.display = 'none';
+        }
+
+        function openScreenshotInNewTab(imageUrl) {
+            window.open(imageUrl, '_blank');
         }
 
         window.onclick = function(event) {
